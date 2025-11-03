@@ -1,10 +1,11 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { removeMember, listFamilyMembers } from "@/data/families";
 import { supabaseAdmin } from "@/lib/supabase/admin";
+import type { Profile } from "@/types/database";
 
 export const DELETE = async (
-  _request: Request,
+  _request: NextRequest,
   context: { params: Promise<{ id: string }> },
 ) => {
   const params = await context.params;
@@ -27,7 +28,7 @@ export const DELETE = async (
     .from("profiles")
     .select("*")
     .eq("user_id", user.id)
-    .single();
+    .single<Profile>();
 
   if (!profile?.family_id) {
     return NextResponse.json(

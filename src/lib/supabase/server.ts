@@ -33,8 +33,11 @@ const getSupabaseKey = () => {
 export const createSupabaseServerClient = async () => {
   const cookieStore = await cookies();
 
-  return createServerClient<Database>(getSupabaseUrl(), getSupabaseKey(), {
-    cookies: {
+  return createServerClient<Database, "public">(
+    getSupabaseUrl(),
+    getSupabaseKey(),
+    {
+      cookies: {
       get(name: string) {
         try {
           return cookieStore.get(name)?.value;
@@ -80,5 +83,6 @@ export const createSupabaseServerClient = async () => {
         }
       },
     },
-  });
+    },
+  );
 };

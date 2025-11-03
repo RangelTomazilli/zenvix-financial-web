@@ -20,36 +20,38 @@ async function resolveProfile(
       .from("profiles")
       .select("*")
       .eq("user_id", userId)
-      .single();
+      .single<Profile>();
 
     if (!profileError) {
       return data as Profile;
     }
 
-    const insertedProfile = await supabase
+    const { data: insertedData, error: insertError } = await supabase
       .from("profiles")
-      .insert({
-        user_id: userId,
-        full_name: fullName ?? null,
-        email: email ?? null,
-        role: "owner",
-      })
+      .insert([
+        {
+          user_id: userId,
+          full_name: fullName ?? null,
+          email: email ?? null,
+          role: "owner",
+        } as Database["public"]["Tables"]["profiles"]["Insert"],
+      ] as unknown as never)
       .select("*")
-      .single();
+      .single<Profile>();
 
-    if (insertedProfile.error) {
+    if (insertError || !insertedData) {
       logger.error("Falha ao criar perfil", {
-        error: insertedProfile.error,
+        error: insertError,
         payload: {
           userId,
           fullName,
           email,
         },
       });
-      throw insertedProfile.error;
+      throw insertError;
     }
 
-    return insertedProfile.data as Profile;
+    return insertedData as Profile;
   }
 }
 

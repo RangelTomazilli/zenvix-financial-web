@@ -1,17 +1,12 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { transactionSchema } from "@/lib/validation";
+import type { Profile } from "@/types/database";
 import {
   updateTransaction,
   deleteTransaction,
   type TransactionWithRelations,
 } from "@/data/transactions";
-
-interface Params {
-  params: {
-    id: string;
-  };
-}
 
 const toPlainTransaction = (transaction: TransactionWithRelations) => ({
   id: transaction.id,
@@ -24,9 +19,13 @@ const toPlainTransaction = (transaction: TransactionWithRelations) => ({
   createdBy: transaction.profiles?.full_name ?? null,
 });
 
-export const PATCH = async (request: Request, { params }: Params) => {
+export const PATCH = async (
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) => {
   const supabase = await createSupabaseServerClient();
   const body = await request.json();
+  const { id } = await params;
 
   const {
     data: { user },
@@ -40,7 +39,7 @@ export const PATCH = async (request: Request, { params }: Params) => {
     .from("profiles")
     .select("*")
     .eq("user_id", user.id)
-    .single();
+    .single<Profile>();
 
   if (!profile?.family_id) {
     return NextResponse.json(
@@ -59,7 +58,7 @@ export const PATCH = async (request: Request, { params }: Params) => {
 
   const patched = await updateTransaction(
     supabase,
-    params.id,
+    id,
     profile.family_id,
     {
       categoryId: parsed.data.categoryId ?? undefined,
@@ -73,7 +72,10 @@ export const PATCH = async (request: Request, { params }: Params) => {
   return NextResponse.json(toPlainTransaction(patched));
 };
 
-export const DELETE = async (_request: Request, { params }: Params) => {
+export const DELETE = async (
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) => {
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },
@@ -87,7 +89,7 @@ export const DELETE = async (_request: Request, { params }: Params) => {
     .from("profiles")
     .select("*")
     .eq("user_id", user.id)
-    .single();
+    .single<Profile>();
 
   if (!profile?.family_id) {
     return NextResponse.json(
@@ -96,6 +98,8 @@ export const DELETE = async (_request: Request, { params }: Params) => {
     );
   }
 
-  await deleteTransaction(supabase, params.id, profile.family_id);
+  const { id } = await params;
+
+  await deleteTransaction(supabase, id, profile.family_id);
   return NextResponse.json({ ok: true });
 };

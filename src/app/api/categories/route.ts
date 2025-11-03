@@ -17,7 +17,7 @@ export const GET = async () => {
     .from("profiles")
     .select("family_id")
     .eq("user_id", user.id)
-    .single();
+    .single<{ family_id: string | null }>();
 
   if (!profile?.family_id) {
     return NextResponse.json(
@@ -46,7 +46,7 @@ export const POST = async (request: Request) => {
     .from("profiles")
     .select("family_id")
     .eq("user_id", user.id)
-    .single();
+    .single<{ family_id: string | null }>();
 
   if (!profile?.family_id) {
     return NextResponse.json(

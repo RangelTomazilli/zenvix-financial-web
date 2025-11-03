@@ -18,7 +18,7 @@ export default async function TransactionsPage() {
     .from("profiles")
     .select("id, family_id, full_name")
     .eq("user_id", user.id)
-    .single();
+    .single<{ id: string; family_id: string | null; full_name: string | null }>();
 
   if (!profile?.family_id) {
     redirect("/family");
@@ -28,7 +28,7 @@ export default async function TransactionsPage() {
     .from("families")
     .select("currency_code")
     .eq("id", profile.family_id)
-    .single();
+    .single<{ currency_code: string }>();
 
   const [transactions, categories] = await Promise.all([
     listTransactions(supabase, profile.family_id),

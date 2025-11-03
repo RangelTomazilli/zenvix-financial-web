@@ -1,11 +1,11 @@
 'use server';
 
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { logger } from "@/lib/logger";
 
 export const POST = async (
-  _request: Request,
+  _request: NextRequest,
   {
     params,
   }: {
@@ -33,7 +33,14 @@ export const POST = async (
       .from("family_invites")
       .select("*")
       .eq("token", token)
-      .single();
+      .single<{
+        id: string;
+        family_id: string;
+        invitee_email: string;
+        status: "pending" | "accepted" | "expired" | "revoked";
+        expires_at: string | null;
+        created_at: string;
+      }>();
 
     if (inviteError || !invite) {
       return NextResponse.json(
@@ -58,7 +65,7 @@ export const POST = async (
       .from("family_invites")
       .update({
         status: "revoked",
-      })
+      } as never)
       .eq("id", invite.id);
 
     if (updateInvite.error) {

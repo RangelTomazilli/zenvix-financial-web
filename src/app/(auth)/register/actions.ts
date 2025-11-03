@@ -5,6 +5,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { registerSchema } from "@/lib/validation";
 import { logger } from "@/lib/logger";
 import { supabaseAdmin } from "@/lib/supabase/admin";
+import type { Database } from "@/types/database";
 
 interface RegisterState {
   error?: string;
@@ -62,12 +63,16 @@ export async function registerAction(
     full_name: parsed.data.fullName,
     email: parsed.data.email,
     role: "owner",
-  } as const;
+  } satisfies Database["public"]["Tables"]["profiles"]["Insert"];
 
   if (supabaseAdmin) {
+    const payloads: Database["public"]["Tables"]["profiles"]["Insert"][] = [
+      profilePayload,
+    ];
+
     const { error: profileError } = await supabaseAdmin
       .from("profiles")
-      .upsert(profilePayload, { onConflict: "id" });
+      .upsert(payloads as unknown as never, { onConflict: "id" });
 
     if (profileError) {
       logger.warn("Cadastro concluído, mas não foi possível preencher perfil", {

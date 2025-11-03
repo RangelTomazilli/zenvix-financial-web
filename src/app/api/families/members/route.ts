@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { addMemberByEmail, listFamilyMembers } from "@/data/families";
+import type { Profile } from "@/types/database";
 
 export const POST = async (request: Request) => {
   const supabase = await createSupabaseServerClient();
@@ -22,7 +23,7 @@ export const POST = async (request: Request) => {
     .from("profiles")
     .select("*")
     .eq("user_id", user.id)
-    .single();
+    .single<Profile>();
 
   if (!profile?.family_id) {
     return NextResponse.json(

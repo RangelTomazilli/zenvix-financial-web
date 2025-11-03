@@ -58,20 +58,31 @@ export default async function InvitePage({
       .single();
 
     if (!error && data) {
+      const typed = data as {
+        id: string;
+        family_id: string;
+        invitee_email: string;
+        status: string;
+        expires_at: string | null;
+        created_at: string;
+        token: string;
+        families: { name?: string | null } | null;
+        inviter: { full_name?: string | null; email?: string | null } | null;
+      };
       invite = {
-        id: data.id,
-        family_id: data.family_id,
-        invitee_email: data.invitee_email,
-        status: data.status,
-        expires_at: data.expires_at,
-        created_at: data.created_at,
-        token: data.token,
-        family_name: (data.families as { name?: string | null } | null)?.name,
+        id: typed.id,
+        family_id: typed.family_id,
+        invitee_email: typed.invitee_email,
+        status: typed.status,
+        expires_at: typed.expires_at,
+        created_at: typed.created_at,
+        token: typed.token,
+        family_name: typed.families?.name ?? null,
         inviter_name: (
-          data.inviter as { full_name?: string | null } | null
+          typed.inviter as { full_name?: string | null } | null
         )?.full_name,
         inviter_email: (
-          data.inviter as { email?: string | null } | null
+          typed.inviter as { email?: string | null } | null
         )?.email,
       };
     }
@@ -88,9 +99,10 @@ export default async function InvitePage({
     : autoAcceptParam === "1";
 
   if (!invite) {
-    const { data, error } = await supabase.rpc("fetch_invite_by_token", {
-      p_token: token,
-    });
+    const { data, error } = await supabase.rpc(
+      "fetch_invite_by_token",
+      { p_token: token } as never,
+    );
 
     if (!error && data) {
       const rows = Array.isArray(data) ? data : [data];

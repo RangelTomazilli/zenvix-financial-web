@@ -1,9 +1,10 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { logger } from "@/lib/logger";
+import type { Profile } from "@/types/database";
 
 export const POST = async (
-  _request: Request,
+  _request: NextRequest,
   {
     params,
   }: {
@@ -31,7 +32,14 @@ export const POST = async (
       .from("family_invites")
       .select("*")
       .eq("token", token)
-      .single();
+      .single<{
+        id: string;
+        family_id: string;
+        invitee_email: string;
+        status: "pending" | "accepted" | "expired" | "revoked";
+        expires_at: string | null;
+        created_at: string;
+      }>();
 
     if (inviteError || !invite) {
       return NextResponse.json(
@@ -63,7 +71,7 @@ export const POST = async (
       .from("profiles")
       .select("*")
       .eq("user_id", user.id)
-      .single();
+      .single<Profile>();
 
     if (profileError || !profile) {
       logger.error("Convite: perfil do convidado não encontrado", {
@@ -81,7 +89,7 @@ export const POST = async (
       .update({
         family_id: invite.family_id,
         role: profile.role === "owner" ? "owner" : "member",
-      })
+      } as never)
       .eq("id", profile.id);
 
     if (updateProfile.error) {
@@ -100,7 +108,7 @@ export const POST = async (
       .update({
         status: "accepted",
         accepted_at: new Date().toISOString(),
-      })
+      } as never)
       .eq("id", invite.id);
 
     if (updateInvite.error) {

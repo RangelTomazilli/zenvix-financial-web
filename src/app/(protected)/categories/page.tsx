@@ -17,7 +17,7 @@ export default async function CategoriesPage() {
     .from("profiles")
     .select("family_id")
     .eq("user_id", user.id)
-    .single();
+    .single<{ family_id: string | null }>();
 
   if (!profile?.family_id) {
     redirect("/family");

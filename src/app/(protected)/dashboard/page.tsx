@@ -24,7 +24,7 @@ export default async function DashboardPage() {
     .from("profiles")
     .select("family_id")
     .eq("user_id", user.id)
-    .single();
+    .single<{ family_id: string | null }>();
 
   if (!profile?.family_id) {
     redirect("/family");
@@ -36,7 +36,7 @@ export default async function DashboardPage() {
     .from("families")
     .select("currency_code")
     .eq("id", familyId)
-    .single();
+    .single<{ currency_code: string }>();
 
   const currency = familyRow?.currency_code ?? "BRL";
 
@@ -55,7 +55,12 @@ export default async function DashboardPage() {
     });
   }
 
-  const totals = (totalsData ?? []).reduce(
+  const totalsRows = (totalsData ?? []) as Array<{
+    amount: number;
+    type: "income" | "expense";
+  }>;
+
+  const totals = totalsRows.reduce(
     (acc, item) => {
       const amount = Number(item.amount) || 0;
       if (item.type === "income") {
@@ -87,15 +92,25 @@ export default async function DashboardPage() {
     .gte("occurred_on", monthStart)
     .order("occurred_on", { ascending: false });
 
-  const monthlyIncome = monthlyData?.reduce((sum, item) => {
+  const monthlyRows = (monthlyData ?? []) as Array<{
+    amount: number;
+    type: "income" | "expense";
+    occurred_on: string;
+    description: string | null;
+    category_id: string | null;
+    categories?: { id: string; name: string; type: "income" | "expense" } | null;
+    profiles?: { full_name: string | null } | null;
+  }>;
+
+  const monthlyIncome = monthlyRows.reduce((sum, item) => {
     return item.type === "income" ? sum + (item.amount as number) : sum;
-  }, 0) ?? 0;
+  }, 0);
 
-  const monthlyExpense = monthlyData?.reduce((sum, item) => {
+  const monthlyExpense = monthlyRows.reduce((sum, item) => {
     return item.type === "expense" ? sum + (item.amount as number) : sum;
-  }, 0) ?? 0;
+  }, 0);
 
-  const categoryStats = (monthlyData ?? []).reduce<CategoryStat[]>(
+  const categoryStats = monthlyRows.reduce<CategoryStat[]>(
     (acc, item) => {
       const category = item.categories as
         | { id: string; name: string; type: "income" | "expense" }
@@ -130,7 +145,13 @@ export default async function DashboardPage() {
     .gte("occurred_on", sixMonthsIso)
     .order("occurred_on", { ascending: true });
 
-  const monthlyTrend = (rangeData ?? []).reduce<Record<string, MonthlyTrendItem>>(
+  const rangeRows = (rangeData ?? []) as Array<{
+    amount: number;
+    type: "income" | "expense";
+    occurred_on: string;
+  }>;
+
+  const monthlyTrend = rangeRows.reduce<Record<string, MonthlyTrendItem>>(
     (acc, item) => {
       const monthKey = (item.occurred_on as string).slice(0, 7);
       if (!acc[monthKey]) {
@@ -171,18 +192,25 @@ export default async function DashboardPage() {
     .select("id", { count: "exact", head: true })
     .eq("family_id", familyId);
 
-  const recentItems: RecentTransactionItem[] = (latestTransactions ?? []).map(
-    (item) => ({
-      id: item.id as string,
-      description: (item.description as string | null) ?? null,
-      categoryName: (item.categories as { name: string } | null)?.name ?? null,
-      amount: item.amount as number,
-      type: item.type as "income" | "expense",
-      occurredOn: item.occurred_on as string,
-      createdBy: (item.profiles as { full_name: string | null } | null)
-        ?.full_name ?? null,
-    }),
-  );
+  const latestRows = (latestTransactions ?? []) as Array<{
+    id: string;
+    amount: number;
+    type: "income" | "expense";
+    occurred_on: string;
+    description: string | null;
+    categories: { name: string } | null;
+    profiles: { full_name: string | null } | null;
+  }>;
+
+  const recentItems: RecentTransactionItem[] = latestRows.map((item) => ({
+    id: item.id,
+    description: item.description,
+    categoryName: item.categories?.name ?? null,
+    amount: item.amount,
+    type: item.type,
+    occurredOn: item.occurred_on,
+    createdBy: item.profiles?.full_name ?? null,
+  }));
 
   return (
     <div className="flex flex-col gap-6">

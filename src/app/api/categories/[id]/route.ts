@@ -1,17 +1,15 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { categorySchema } from "@/lib/validation";
 import { updateCategory, deleteCategory } from "@/data/categories";
 
-interface Params {
-  params: {
-    id: string;
-  };
-}
-
-export const PATCH = async (request: Request, { params }: Params) => {
+export const PATCH = async (
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) => {
   const supabase = await createSupabaseServerClient();
   const body = await request.json();
+  const { id } = await params;
 
   const {
     data: { user },
@@ -25,7 +23,7 @@ export const PATCH = async (request: Request, { params }: Params) => {
     .from("profiles")
     .select("family_id")
     .eq("user_id", user.id)
-    .single();
+    .single<{ family_id: string | null }>();
 
   if (!profile?.family_id) {
     return NextResponse.json(
@@ -44,7 +42,7 @@ export const PATCH = async (request: Request, { params }: Params) => {
 
   const category = await updateCategory(
     supabase,
-    params.id,
+    id,
     profile.family_id,
     {
       name: parsed.data.name,
@@ -55,7 +53,10 @@ export const PATCH = async (request: Request, { params }: Params) => {
   return NextResponse.json(category);
 };
 
-export const DELETE = async (_request: Request, { params }: Params) => {
+export const DELETE = async (
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) => {
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },
@@ -69,7 +70,7 @@ export const DELETE = async (_request: Request, { params }: Params) => {
     .from("profiles")
     .select("family_id")
     .eq("user_id", user.id)
-    .single();
+    .single<{ family_id: string | null }>();
 
   if (!profile?.family_id) {
     return NextResponse.json(
@@ -78,6 +79,8 @@ export const DELETE = async (_request: Request, { params }: Params) => {
     );
   }
 
-  await deleteCategory(supabase, params.id, profile.family_id);
+  const { id } = await params;
+
+  await deleteCategory(supabase, id, profile.family_id);
   return NextResponse.json({ ok: true });
 };

@@ -13,7 +13,7 @@ if (!supabaseUrl) {
  * Utilize apenas em código server-side (rotas de API, actions, scripts).
  */
 export const supabaseAdmin = supabaseServiceKey
-  ? createClient<Database>(supabaseUrl, supabaseServiceKey, {
+  ? createClient<Database, "public">(supabaseUrl, supabaseServiceKey, {
       auth: { persistSession: false },
     })
   : null;

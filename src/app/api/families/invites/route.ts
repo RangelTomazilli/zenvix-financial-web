@@ -47,7 +47,13 @@ export const POST = async (request: Request) => {
       .from("profiles")
       .select("id, role, family_id, full_name, email")
       .eq("user_id", user.id)
-      .single();
+      .single<{
+        id: string;
+        role: "owner" | "member";
+        family_id: string | null;
+        full_name: string | null;
+        email: string | null;
+      }>();
 
     if (profileError || !profile) {
       logger.error("Convite: perfil não encontrado", {
@@ -77,7 +83,7 @@ export const POST = async (request: Request) => {
         invitee_email: lowerEmail,
         token,
         expires_at: expiresAt.toISOString(),
-      })
+      } as never)
       .select(
         "id, family_id, invitee_email, status, expires_at, created_at, token",
       )
@@ -94,7 +100,24 @@ export const POST = async (request: Request) => {
       );
     }
 
-    const inviteRecord = inviteInsert.data;
+    const inviteRecord = inviteInsert.data as
+      | {
+          id: string;
+          family_id: string;
+          invitee_email: string;
+          status: string;
+          expires_at: string | null;
+          created_at: string;
+          token: string;
+        }
+      | null;
+
+    if (!inviteRecord) {
+      return NextResponse.json(
+        { error: "Convite não pôde ser criado" },
+        { status: 500 },
+      );
+    }
     const appUrl = currentAppUrl();
     const inviteLink = `${appUrl}/invite/${token}`;
 
