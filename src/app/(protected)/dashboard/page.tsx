@@ -2,10 +2,8 @@ import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { SummaryCards } from "@/components/dashboard/SummaryCards";
 import { CategoryDistribution } from "@/components/dashboard/CategoryDistribution";
-import { MonthlyTrend } from "@/components/dashboard/MonthlyTrend";
 import { RecentTransactions } from "@/components/dashboard/RecentTransactions";
 import type { CategoryStat } from "@/components/dashboard/CategoryDistribution";
-import type { MonthlyTrendItem } from "@/components/dashboard/MonthlyTrend";
 import type { RecentTransactionItem } from "@/components/dashboard/RecentTransactions";
 
 const toISODate = (date: Date) => date.toISOString().split("T")[0]!;
@@ -133,48 +131,6 @@ export default async function DashboardPage() {
     [],
   );
 
-  const sixMonthsAgo = new Date();
-  sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5);
-  sixMonthsAgo.setDate(1);
-  const sixMonthsIso = toISODate(sixMonthsAgo);
-
-  const { data: rangeData } = await supabase
-    .from("transactions")
-    .select("amount, type, occurred_on")
-    .eq("family_id", familyId)
-    .gte("occurred_on", sixMonthsIso)
-    .order("occurred_on", { ascending: true });
-
-  const rangeRows = (rangeData ?? []) as Array<{
-    amount: number;
-    type: "income" | "expense";
-    occurred_on: string;
-  }>;
-
-  const monthlyTrend = rangeRows.reduce<Record<string, MonthlyTrendItem>>(
-    (acc, item) => {
-      const monthKey = (item.occurred_on as string).slice(0, 7);
-      if (!acc[monthKey]) {
-        acc[monthKey] = {
-          month: monthKey,
-          income: 0,
-          expense: 0,
-        };
-      }
-      if (item.type === "income") {
-        acc[monthKey]!.income += item.amount as number;
-      } else {
-        acc[monthKey]!.expense += item.amount as number;
-      }
-      return acc;
-    },
-    {},
-  );
-
-  const monthlyTrendList = Object.values(monthlyTrend).sort((a, b) =>
-    a.month.localeCompare(b.month),
-  );
-
   const { data: latestTransactions } = await supabase
     .from("transactions")
     .select(
@@ -221,14 +177,7 @@ export default async function DashboardPage() {
         totalTransactions={transactionsCount ?? 0}
         currency={currency}
       />
-      <div className="grid gap-6 lg:grid-cols-5">
-        <div className="lg:col-span-3">
-          <MonthlyTrend data={monthlyTrendList} currency={currency} />
-        </div>
-        <div className="lg:col-span-2">
-          <CategoryDistribution data={categoryStats} currency={currency} />
-        </div>
-      </div>
+      <CategoryDistribution data={categoryStats} currency={currency} />
       <RecentTransactions data={recentItems} currency={currency} />
     </div>
   );
