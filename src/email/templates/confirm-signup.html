@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Confirme seu cadastro • Zenvix</title>
+    <style>
+      :root {
+        color-scheme: light;
+      }
+      body {
+        margin: 0;
+        font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI",
+          sans-serif;
+        background-color: #f4f4f8;
+        color: #1f2937;
+      }
+      .wrapper {
+        width: 100%;
+        padding: 32px 16px;
+        background: linear-gradient(135deg, #eef2ff 0%, #f8fafc 100%);
+      }
+      .card {
+        max-width: 560px;
+        margin: 0 auto;
+        background-color: #ffffff;
+        border-radius: 24px;
+        border: 1px solid rgba(99, 102, 241, 0.08);
+        box-shadow: 0 30px 80px -50px rgba(15, 23, 42, 0.35);
+        overflow: hidden;
+      }
+      .header {
+        padding: 32px;
+        background: linear-gradient(135deg, #4338ca 0%, #4f46e5 60%, #0ea5e9 100%);
+        color: #ffffff;
+      }
+      .header h1 {
+        margin: 0;
+        font-size: 26px;
+        font-weight: 600;
+        letter-spacing: -0.4px;
+      }
+      .body {
+        padding: 32px;
+      }
+      .body p {
+        margin: 12px 0;
+        line-height: 1.6;
+        font-size: 15px;
+      }
+      .cta {
+        display: inline-block;
+        margin: 24px 0;
+        padding: 14px 28px;
+        background: linear-gradient(135deg, #4f46e5 0%, #0ea5e9 100%);
+        color: #ffffff !important;
+        text-decoration: none;
+        font-weight: 600;
+        border-radius: 999px;
+        box-shadow: 0 10px 20px -12px rgba(79, 70, 229, 0.7);
+      }
+      .meta {
+        margin-top: 24px;
+        padding: 16px;
+        border-radius: 16px;
+        background-color: #f8fafc;
+        border: 1px solid rgba(148, 163, 184, 0.12);
+        font-size: 13px;
+        line-height: 1.5;
+        color: #475569;
+      }
+      .meta strong {
+        color: #1f2937;
+      }
+      .footer {
+        padding: 24px 32px 36px;
+        border-top: 1px solid rgba(226, 232, 240, 0.7);
+        background-color: #f8fafc;
+        font-size: 12px;
+        color: #94a3b8;
+        text-align: center;
+      }
+      .footer a {
+        color: #4f46e5;
+        text-decoration: none;
+      }
+      @media (max-width: 520px) {
+        .header,
+        .body,
+        .footer {
+          padding: 24px;
+        }
+        .header h1 {
+          font-size: 22px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrapper">
+      <div class="card">
+        <div class="header">
+          <h1>Bem-vindo à Zenvix!</h1>
+        </div>
+        <div class="body">
+          <p>Olá, {{ .Email }} 👋</p>
+          <p>
+            Estamos quase lá! Confirme o seu e-mail para desbloquear o painel
+            financeiro da sua família e começar a organizar receitas, despesas e
+            metas em equipe.
+          </p>
+          <p style="text-align: center">
+            <a
+              class="cta"
+              href="{{ .ConfirmationURL }}"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Confirmar meu e-mail
+            </a>
+          </p>
+          <p>
+            Se o botão não funcionar, copie e cole este link no navegador de sua
+            preferência:
+          </p>
+          <p class="meta" style="word-break: break-all">
+            {{ .ConfirmationURL }}
+          </p>
+          <div class="meta">
+            <p style="margin-top: 0">
+              <strong>Por que confirmar?</strong>
+            </p>
+            <p style="margin-bottom: 0">
+              • Garante que só você tem acesso às informações financeiras da sua
+              família.<br />
+              • Libera convites compartilhados e dashboards em tempo real.<br />
+              • Mantém a Zenvix segura e aderente às melhores práticas de proteção
+              de dados.
+            </p>
+          </div>
+          <p>
+            Caso você não tenha solicitado este cadastro, basta ignorar este e-mail
+            — nenhum acesso será habilitado sem a confirmação.
+          </p>
+        </div>
+        <div class="footer">
+          Zenvix Finanças Familiares •
+          <a href="{{ .SiteURL }}" target="_blank" rel="noopener noreferrer"
+            >Acessar painel</a
+          ><br />
+          Enviado para {{ .Email }} por contato@zenvix.com.br
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
