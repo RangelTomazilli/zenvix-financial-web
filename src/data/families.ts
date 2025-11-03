@@ -9,7 +9,7 @@ export const getCurrentProfile = async (client: Client, userId: string) => {
     .from("profiles")
     .select("*")
     .eq("user_id", userId)
-    .single();
+    .single<Profile>();
 
   if (error) {
     throw error;
@@ -28,7 +28,7 @@ export const ensureFamily = async (
       .from("families")
       .select("*")
       .eq("id", profile.family_id)
-      .single();
+      .single<Family>();
 
     if (error) {
       throw error;
@@ -43,13 +43,15 @@ export const ensureFamily = async (
 
   const newFamilyId = randomUUID();
 
+  const familyPayload = {
+    id: newFamilyId,
+    name: defaultName,
+    currency_code: "BRL",
+  } satisfies Database["public"]["Tables"]["families"]["Insert"];
+
   const { error: insertError } = await client
     .from("families")
-    .insert({
-      id: newFamilyId,
-      name: defaultName,
-      currency_code: "BRL",
-    }, { returning: "minimal" });
+    .insert(familyPayload as never);
 
   if (insertError) {
     console.error("ensureFamily: erro ao criar família", {
@@ -61,7 +63,7 @@ export const ensureFamily = async (
 
   const { error: updateError } = await client
     .from("profiles")
-    .update({ family_id: newFamilyId, role: "owner" })
+    .update({ family_id: newFamilyId, role: "owner" } as never)
     .eq("id", profile.id);
 
   if (updateError) {
@@ -77,7 +79,7 @@ export const ensureFamily = async (
     .from("families")
     .select("*")
     .eq("id", newFamilyId)
-    .single();
+    .single<Family>();
 
   if (fetchError) {
     console.error("ensureFamily: erro ao buscar família criada", {
@@ -100,10 +102,10 @@ export const updateFamily = async (
     .update({
       name: patch.name,
       currency_code: patch.currency_code,
-    })
+    } as never)
     .eq("id", familyId)
     .select("*")
-    .single();
+    .single<Family>();
 
   if (error) {
     throw error;
@@ -135,7 +137,7 @@ export const addMemberByEmail = async (
     .from("profiles")
     .select("*")
     .ilike("email", email)
-    .single();
+    .single<Profile>();
 
   if (error) {
     throw error;
@@ -147,10 +149,10 @@ export const addMemberByEmail = async (
 
   const { data: updated, error: updateError } = await client
     .from("profiles")
-    .update({ family_id: familyId, role: "member" })
+    .update({ family_id: familyId, role: "member" } as never)
     .eq("id", profile.id)
     .select("*")
-    .single();
+    .single<Profile>();
 
   if (updateError) {
     throw updateError;
@@ -167,7 +169,7 @@ export const removeMember = async (
   const { error } = await client.rpc("remove_family_member", {
     p_family_id: familyId,
     p_profile_id: profileId,
-  });
+  } as never);
 
   if (error) {
     throw error;

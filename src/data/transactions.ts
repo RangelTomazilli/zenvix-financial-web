@@ -65,24 +65,26 @@ export const createTransaction = async (
   client: Client,
   payload: TransactionInput,
 ): Promise<TransactionWithRelations> => {
+  const insertPayload = {
+    family_id: payload.familyId,
+    user_id: payload.userId,
+    category_id: payload.categoryId ?? null,
+    type: payload.type,
+    amount: payload.amount,
+    occurred_on: payload.occurredOn,
+    description: payload.description ?? null,
+  } satisfies Database["public"]["Tables"]["transactions"]["Insert"];
+
   const { data, error } = await client
     .from("transactions")
-    .insert({
-      family_id: payload.familyId,
-      user_id: payload.userId,
-      category_id: payload.categoryId ?? null,
-      type: payload.type,
-      amount: payload.amount,
-      occurred_on: payload.occurredOn,
-      description: payload.description ?? null,
-    })
+    .insert(insertPayload as never)
     .select(
       `*,
       categories ( id, name, type ),
       profiles ( id, full_name )
     `,
     )
-    .single();
+    .single<TransactionWithRelations>();
 
   if (error) {
     throw error;
@@ -105,7 +107,7 @@ export const updateTransaction = async (
       amount: patch.amount,
       occurred_on: patch.occurredOn,
       description: patch.description ?? undefined,
-    })
+    } as Database["public"]["Tables"]["transactions"]["Update"] as never)
     .eq("id", transactionId)
     .eq("family_id", familyId)
     .select(
@@ -114,7 +116,7 @@ export const updateTransaction = async (
       profiles ( id, full_name )
     `,
     )
-    .single();
+    .single<TransactionWithRelations>();
 
   if (error) {
     throw error;
@@ -150,10 +152,10 @@ export const fetchMonthlyTotals = async (
   familyId: string,
   months = 6,
 ) => {
-  const { data, error } = await client.rpc("transactions_monthly_totals", {
-    p_family_id: familyId,
-    p_months_back: months,
-  });
+  const { data, error } = await client.rpc(
+    "transactions_monthly_totals",
+    { p_family_id: familyId, p_months_back: months } as never,
+  );
 
   if (error) {
     if (error.code === "42883") {

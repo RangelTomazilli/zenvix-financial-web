@@ -34,15 +34,15 @@ export const createCategory = async (client: Client, input: CategoryInput) => {
       family_id: input.familyId,
       name: input.name,
       type: input.type,
-    })
+    } as never)
     .select("*")
-    .single();
+    .single<Category>();
 
   if (error) {
     throw error;
   }
 
-  return data;
+  return data as Category;
 };
 
 export const updateCategory = async (
@@ -56,17 +56,17 @@ export const updateCategory = async (
     .update({
       name: patch.name,
       type: patch.type,
-    })
+    } as never)
     .eq("id", categoryId)
     .eq("family_id", familyId)
     .select("*")
-    .single();
+    .single<Category>();
 
   if (error) {
     throw error;
   }
 
-  return data;
+  return data as Category;
 };
 
 export const deleteCategory = async (
