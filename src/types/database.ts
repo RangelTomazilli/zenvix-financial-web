@@ -21,19 +21,21 @@ export interface Database {
       profiles: {
         Row: {
           id: string;
-          user_id: string;
+          user_id: string | null;
           family_id: string | null;
           full_name: string | null;
           email: string | null;
+          phone: string | null;
           role: "owner" | "member";
           created_at: string;
         };
         Insert: {
           id?: string;
-          user_id: string;
+          user_id?: string | null;
           family_id?: string | null;
           full_name?: string | null;
           email?: string | null;
+          phone?: string | null;
           role?: "owner" | "member";
           created_at?: string;
         };
@@ -62,7 +64,7 @@ export interface Database {
         Row: {
           id: string;
           family_id: string;
-          user_id: string;
+          user_id: string | null;
           category_id: string | null;
           type: TransactionType;
           amount: number;
@@ -74,7 +76,7 @@ export interface Database {
         Insert: {
           id?: string;
           family_id: string;
-          user_id: string;
+          user_id?: string | null;
           category_id?: string | null;
           type: TransactionType;
           amount: number;
@@ -83,7 +85,7 @@ export interface Database {
           created_at?: string;
           updated_at?: string;
         };
-        Update: Partial<Omit<Database["public"]["Tables"]["transactions"]["Row"], "id" | "family_id" | "user_id">>;
+        Update: Partial<Omit<Database["public"]["Tables"]["transactions"]["Row"], "id" | "family_id">>;
       };
     };
     Views: Record<string, unknown>;

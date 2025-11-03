@@ -10,6 +10,7 @@ const links = [
   { href: "/transactions", label: "Transações" },
   { href: "/categories", label: "Categorias" },
   { href: "/family", label: "Família" },
+  { href: "/profile", label: "Perfil" },
 ];
 
 interface NavigationProps {

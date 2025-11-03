@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { listTransactions } from "@/data/transactions";
 import { listCategories } from "@/data/categories";
+import { listFamilyMembers } from "@/data/families";
 import { TransactionsBoard } from "@/components/transactions/TransactionsBoard";
 
 export default async function TransactionsPage() {
@@ -30,9 +31,10 @@ export default async function TransactionsPage() {
     .eq("id", profile.family_id)
     .single<{ currency_code: string }>();
 
-  const [transactions, categories] = await Promise.all([
+  const [transactions, categories, members] = await Promise.all([
     listTransactions(supabase, profile.family_id),
     listCategories(supabase, profile.family_id),
+    listFamilyMembers(supabase, profile.family_id),
   ]);
 
   const serializedTransactions = transactions.map((transaction) => ({
@@ -43,7 +45,9 @@ export default async function TransactionsPage() {
     categoryId: transaction.category_id,
     categoryName: transaction.categories?.name ?? null,
     description: transaction.description,
-    createdBy: transaction.profiles?.full_name ?? null,
+    memberId: transaction.user_id,
+    memberName: transaction.profiles?.full_name ?? null,
+    memberEmail: transaction.profiles?.email ?? null,
   }));
 
   const serializedCategories = categories.map((category) => ({
@@ -58,6 +62,11 @@ export default async function TransactionsPage() {
       categories={serializedCategories}
       currency={family?.currency_code ?? "BRL"}
       currentUser={profile.full_name ?? user.email ?? "Você"}
+      members={members.map((member) => ({
+        id: member.id,
+        name: member.full_name,
+        email: member.email ?? null,
+      }))}
     />
   );
 }

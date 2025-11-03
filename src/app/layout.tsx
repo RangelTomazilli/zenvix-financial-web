@@ -20,7 +20,9 @@ export const metadata: Metadata = {
   description:
     "Dashboard financeiro familiar com autenticação Supabase, categorias e controle de receitas e despesas.",
   icons: {
-    icon: "/favicon.ico",
+    icon: "/zenvix-icon.svg",
+    shortcut: "/zenvix-icon.svg",
+    apple: "/zenvix-icon.svg",
   },
 };
 

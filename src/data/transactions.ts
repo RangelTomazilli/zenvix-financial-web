@@ -8,12 +8,12 @@ import type {
 
 export type TransactionWithRelations = Transaction & {
   categories: Pick<Category, "id" | "name" | "type"> | null;
-  profiles: { id: string; full_name: string | null } | null;
+  profiles: { id: string; full_name: string | null; email: string | null } | null;
 };
 
 export interface TransactionInput {
   familyId: string;
-  userId: string;
+  profileId: string | null;
   categoryId?: string | null;
   type: TransactionType;
   amount: number;
@@ -22,6 +22,7 @@ export interface TransactionInput {
 }
 
 export interface TransactionUpdate {
+  profileId?: string | null;
   categoryId?: string | null;
   type?: TransactionType;
   amount?: number;
@@ -47,7 +48,8 @@ export const listTransactions = async (
         ),
         profiles (
           id,
-          full_name
+          full_name,
+          email
         )
       `,
     )
@@ -67,7 +69,7 @@ export const createTransaction = async (
 ): Promise<TransactionWithRelations> => {
   const insertPayload = {
     family_id: payload.familyId,
-    user_id: payload.userId,
+    user_id: payload.profileId,
     category_id: payload.categoryId ?? null,
     type: payload.type,
     amount: payload.amount,
@@ -81,7 +83,7 @@ export const createTransaction = async (
     .select(
       `*,
       categories ( id, name, type ),
-      profiles ( id, full_name )
+      profiles ( id, full_name, email )
     `,
     )
     .single<TransactionWithRelations>();
@@ -99,21 +101,28 @@ export const updateTransaction = async (
   familyId: string,
   patch: TransactionUpdate,
 ): Promise<TransactionWithRelations> => {
-  const { data, error } = await client
-    .from("transactions")
-    .update({
+  const updatePayload: Database["public"]["Tables"]["transactions"]["Update"] =
+    {
       category_id: patch.categoryId ?? undefined,
       type: patch.type,
       amount: patch.amount,
       occurred_on: patch.occurredOn,
       description: patch.description ?? undefined,
-    } as Database["public"]["Tables"]["transactions"]["Update"] as never)
+    };
+
+  if (patch.profileId !== undefined) {
+    updatePayload.user_id = patch.profileId;
+  }
+
+  const { data, error } = await client
+    .from("transactions")
+    .update(updatePayload as never)
     .eq("id", transactionId)
     .eq("family_id", familyId)
     .select(
       `*,
       categories ( id, name, type ),
-      profiles ( id, full_name )
+      profiles ( id, full_name, email )
     `,
     )
     .single<TransactionWithRelations>();

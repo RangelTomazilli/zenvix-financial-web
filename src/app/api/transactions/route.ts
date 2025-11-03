@@ -19,6 +19,9 @@ const toPlainTransaction = (transaction: TransactionWithRelations) => ({
   categoryId: transaction.category_id ?? null,
   categoryName: transaction.categories?.name ?? null,
   description: transaction.description ?? null,
+  memberId: transaction.user_id,
+  memberName: transaction.profiles?.full_name ?? null,
+  memberEmail: transaction.profiles?.email ?? null,
   createdBy: transaction.profiles?.full_name ?? null,
 });
 
@@ -51,8 +54,6 @@ export const GET = async () => {
 
 export const POST = async (request: Request) => {
   const supabase = await createSupabaseServerClient();
-  const body = await request.json();
-
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -74,23 +75,62 @@ export const POST = async (request: Request) => {
     );
   }
 
-  const parsed = transactionSchema.safeParse(body);
-  if (!parsed.success) {
-    return NextResponse.json(
-      { error: parsed.error.errors[0]?.message ?? "Dados inválidos" },
-      { status: 400 },
-    );
+  try {
+    const body = await request.json();
+
+    const parsed = transactionSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: parsed.error.errors[0]?.message ?? "Dados inválidos" },
+        { status: 400 },
+      );
+    }
+
+    const targetProfileId: string | null = parsed.data.memberId ?? null;
+
+    if (targetProfileId) {
+      const { data: targetProfile } = await supabase
+        .from("profiles")
+        .select("id, family_id")
+        .eq("id", targetProfileId)
+        .single<Pick<Profile, "id" | "family_id">>();
+
+      if (!targetProfile || targetProfile.family_id !== profile.family_id) {
+        return NextResponse.json(
+          { error: "Responsável não pertence à família" },
+          { status: 400 },
+        );
+      }
+    }
+
+    const inserted = await createTransaction(supabase, {
+      familyId: profile.family_id,
+      profileId: targetProfileId,
+      categoryId: parsed.data.categoryId ?? null,
+      type: parsed.data.type,
+      amount: parsed.data.amount,
+      occurredOn: parsed.data.occurredOn,
+      description: parsed.data.description ?? null,
+    });
+
+    return NextResponse.json(toPlainTransaction(inserted));
+  } catch (error) {
+    console.error("POST /api/transactions", error);
+    let message = "Erro ao registrar transação.";
+    if (typeof error === "object" && error !== null) {
+      const { code, message: supabaseMessage } = error as {
+        code?: string;
+        message?: string;
+      };
+      if (code === "23502") {
+        message =
+          "Seu banco de dados ainda exige um responsável. Execute as migrações pendentes ou selecione um membro antes de salvar.";
+      } else if (supabaseMessage) {
+        message = supabaseMessage;
+      }
+    } else if (error instanceof Error) {
+      message = error.message;
+    }
+    return NextResponse.json({ error: message }, { status: 500 });
   }
-
-  const inserted = await createTransaction(supabase, {
-    familyId: profile.family_id,
-    userId: (profile as Profile).id,
-    categoryId: parsed.data.categoryId ?? null,
-    type: parsed.data.type,
-    amount: parsed.data.amount,
-    occurredOn: parsed.data.occurredOn,
-    description: parsed.data.description ?? null,
-  });
-
-  return NextResponse.json(toPlainTransaction(inserted));
 };

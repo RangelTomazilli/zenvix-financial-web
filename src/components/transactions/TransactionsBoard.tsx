@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { TextField } from "@/components/forms/TextField";
 import { SelectField } from "@/components/forms/SelectField";
 import { TextAreaField } from "@/components/forms/TextAreaField";
@@ -16,7 +16,9 @@ interface TransactionItem {
   categoryId: string | null;
   categoryName: string | null;
   description: string | null;
-  createdBy: string | null;
+  memberId: string | null;
+  memberName: string | null;
+  memberEmail: string | null;
 }
 
 interface CategoryOption {
@@ -30,6 +32,7 @@ interface TransactionsBoardProps {
   categories: CategoryOption[];
   currency: string;
   currentUser: string;
+  members: Array<{ id: string; name: string | null; email: string | null }>;
 }
 
 interface MessageState {
@@ -44,6 +47,7 @@ interface EditingState {
   occurredOn: string;
   categoryId: string;
   description: string;
+  memberId: string;
 }
 
 const today = () => new Date().toISOString().split("T")[0]!;
@@ -56,11 +60,14 @@ const parseAmount = (value: string) => {
 
 const formatAmountInput = (value: number) => value.toFixed(2).replace(".", ",");
 
+const UNASSIGNED_MEMBER = "unassigned-member";
+
 export const TransactionsBoard = ({
   initialTransactions,
   categories,
   currency,
   currentUser,
+  members,
 }: TransactionsBoardProps) => {
   const [transactions, setTransactions] = useState(initialTransactions);
   const [formType, setFormType] = useState<TransactionType>("expense");
@@ -68,6 +75,7 @@ export const TransactionsBoard = ({
   const [formDate, setFormDate] = useState(today());
   const [formCategory, setFormCategory] = useState("none");
   const [formDescription, setFormDescription] = useState("");
+  const [formMember, setFormMember] = useState<string>(UNASSIGNED_MEMBER);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState<MessageState | null>(null);
   const [editing, setEditing] = useState<EditingState | null>(null);
@@ -77,6 +85,7 @@ export const TransactionsBoard = ({
     id: string;
     description: string | null;
   } | null>(null);
+  const editSectionRef = useRef<HTMLDivElement | null>(null);
 
   const filteredCategories = useMemo(
     () =>
@@ -84,6 +93,15 @@ export const TransactionsBoard = ({
         .filter((category) => category.type === formType)
         .map((category) => ({ label: category.name, value: category.id })),
     [categories, formType],
+  );
+
+  const memberOptions = useMemo(
+    () =>
+      members.map((member) => ({
+        label: member.name ?? member.email ?? "Membro sem nome",
+        value: member.id,
+      })),
+    [members],
   );
 
   const editingCategories = useMemo(() => {
@@ -103,6 +121,7 @@ export const TransactionsBoard = ({
     setFormDescription("");
     setFormCategory("none");
     setFormDate(today());
+    setFormMember(UNASSIGNED_MEMBER);
   };
 
   const handleCreate = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -127,6 +146,7 @@ export const TransactionsBoard = ({
           occurredOn: formDate,
           categoryId: formCategory === "none" ? null : formCategory,
           description: formDescription,
+          memberId: formMember === UNASSIGNED_MEMBER ? null : formMember,
         }),
       });
 
@@ -158,6 +178,11 @@ export const TransactionsBoard = ({
       occurredOn: transaction.occurredOn,
       categoryId: transaction.categoryId ?? "none",
       description: transaction.description ?? "",
+      memberId: transaction.memberId ?? UNASSIGNED_MEMBER,
+    });
+
+    queueMicrotask(() => {
+      editSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     });
   };
 
@@ -183,6 +208,7 @@ export const TransactionsBoard = ({
           occurredOn: editing.occurredOn,
           categoryId: editing.categoryId === "none" ? null : editing.categoryId,
           description: editing.description,
+          memberId: editing.memberId === UNASSIGNED_MEMBER ? null : editing.memberId,
         }),
       });
 
@@ -292,6 +318,18 @@ export const TransactionsBoard = ({
             options={[{ label: "Sem categoria", value: "none" }, ...filteredCategories]}
             disabled={isSubmitting || filteredCategories.length === 0}
           />
+          <SelectField
+            id="memberId"
+            name="memberId"
+            label="Responsável"
+            value={formMember}
+            onChange={(event) => setFormMember(event.target.value)}
+            options={[
+              { label: "Sem responsável", value: UNASSIGNED_MEMBER },
+              ...memberOptions,
+            ]}
+            disabled={isSubmitting}
+          />
           <TextAreaField
             id="description"
             name="description"
@@ -359,7 +397,10 @@ export const TransactionsBoard = ({
                       {transaction.description ?? "(Sem descrição)"}
                     </p>
                     <p className="text-xs text-slate-400">
-                      Por {transaction.createdBy ?? "—"}
+                      Por{" "}
+                      {transaction.memberName ??
+                        transaction.memberEmail ??
+                        "Não atribuído."}
                     </p>
                   </td>
                   <td className="px-4 py-3 text-slate-500">
@@ -390,7 +431,7 @@ export const TransactionsBoard = ({
                     <div className="flex justify-end gap-2">
                       <button
                         type="button"
-                        className="rounded-md border border-slate-200 px-3 py-1 text-xs"
+                        className="rounded-md border border-slate-200 px-3 py-1 text-xs font-medium text-slate-600 transition hover:border-indigo-400 hover:text-indigo-600"
                         onClick={() => handleEdit(transaction)}
                       >
                         Editar
@@ -419,7 +460,10 @@ export const TransactionsBoard = ({
       </section>
 
       {editing ? (
-        <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+        <section
+          ref={editSectionRef}
+          className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
+        >
           <header className="mb-4">
             <h2 className="text-lg font-semibold text-slate-900">
               Editar transação
@@ -493,6 +537,22 @@ export const TransactionsBoard = ({
               ]}
               disabled={isUpdating || editingCategories.length === 0}
             />
+            <SelectField
+              id="edit-member"
+              name="memberId"
+              label="Responsável"
+              value={editing.memberId}
+              onChange={(event) =>
+                setEditing((prev) =>
+                  prev ? { ...prev, memberId: event.target.value } : prev,
+                )
+              }
+              options={[
+                { label: "Sem responsável", value: UNASSIGNED_MEMBER },
+                ...memberOptions,
+              ]}
+              disabled={isUpdating}
+            />
             <TextAreaField
               id="edit-description"
               name="description"
@@ -509,7 +569,7 @@ export const TransactionsBoard = ({
             <div className="sm:col-span-2 flex justify-end gap-2">
               <button
                 type="button"
-                className="rounded-md border border-slate-200 px-4 py-2 text-sm"
+                className="rounded-md border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 transition hover:border-indigo-400 hover:text-indigo-600"
                 onClick={() => setEditing(null)}
                 disabled={isUpdating}
               >

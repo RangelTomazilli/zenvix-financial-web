@@ -15,6 +15,7 @@ create table if not exists public.profiles (
   family_id uuid references public.families(id) on delete set null,
   full_name text,
   email text,
+  phone text,
   role text not null default 'member' check (role in ('owner','member')),
   created_at timestamp with time zone not null default now()
 );

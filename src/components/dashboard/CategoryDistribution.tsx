@@ -1,3 +1,6 @@
+'use client';
+
+import { useState } from "react";
 import { formatCurrency } from "@/utils/format";
 import type { TransactionType } from "@/types/database";
 
@@ -64,6 +67,8 @@ export const CategoryDistribution = ({
   data: CategoryStat[];
   currency: string;
 }) => {
+  const [isOpen, setIsOpen] = useState(true);
+
   const incomes = data
     .filter((item) => item.type === "income")
     .sort((a, b) => Math.abs(b.total) - Math.abs(a.total));
@@ -119,67 +124,85 @@ export const CategoryDistribution = ({
 
   return (
     <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-      <header className="mb-6 space-y-1">
-        <h2 className="text-lg font-semibold text-slate-900">
-          Distribuição por categoria (mês atual)
-        </h2>
-        <p className="text-sm text-slate-500">
-          Receitas e despesas analisadas separadamente para destacar a participação de
-          cada categoria.
-        </p>
+      <header className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+        <div className="space-y-1">
+          <h2 className="text-lg font-semibold text-slate-900">
+            Distribuição por categoria (mês atual)
+          </h2>
+          <p className="text-sm text-slate-500">
+            Receitas e despesas analisadas separadamente para destacar a participação de
+            cada categoria.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setIsOpen((prev) => !prev)}
+          className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 text-slate-600 transition hover:border-indigo-400 hover:text-indigo-600"
+          aria-expanded={isOpen}
+        >
+          <span className="sr-only">Alternar exibição</span>
+          <span
+            aria-hidden="true"
+            className={`text-xl transition-transform ${isOpen ? "rotate-90" : "-rotate-90"}`}
+          >
+            ›
+          </span>
+        </button>
       </header>
 
-      <div className="flex flex-col gap-6">
-        {hasIncome ? (
-          <div
-            className={`rounded-lg border px-4 py-3 text-sm md:w-1/2 ${statusClasses}`}
-          >
-            <p>
-              As despesas representam{" "}
-              <span className={`font-semibold ${percentageClasses}`}>
-                {formatPercent(consumption)}
-              </span>{" "}
-              das receitas do mês.
-              {totalExpense === 0 ? " Ótimo controle de gastos!" : ""}
-            </p>
-          </div>
-        ) : (
-          <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600 md:w-1/2">
-            <p>
-              Ainda não há receitas cadastradas neste mês — adicione entradas para
-              acompanhar o consumo das despesas.
-            </p>
-          </div>
-        )}
-
-        <div className="grid gap-6 md:grid-cols-2">
+      {isOpen ? (
+        <div className="flex flex-col gap-6">
           {hasIncome ? (
-            <SectionList
-              title="Receitas"
-              tone="income"
-              items={incomes}
-              currency={currency}
-            />
+            <div
+              className={`rounded-lg border px-4 py-3 text-sm md:w-1/2 ${statusClasses}`}
+            >
+              <p>
+                As despesas representam{" "}
+                <span className={`font-semibold ${percentageClasses}`}>
+                  {formatPercent(consumption)}
+                </span>{" "}
+                das receitas do mês.
+                {totalExpense === 0 ? " Ótimo controle de gastos!" : ""}
+              </p>
+            </div>
           ) : (
-            <p className="rounded-md border border-dashed border-emerald-200 bg-emerald-50/40 px-4 py-3 text-sm text-emerald-700 md:col-span-2">
-              Nenhuma receita registrada neste mês.
-            </p>
+            <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600 md:w-1/2">
+              <p>
+                Ainda não há receitas cadastradas neste mês — adicione entradas para
+                acompanhar o consumo das despesas.
+              </p>
+            </div>
           )}
 
-          {hasExpense ? (
-            <SectionList
-              title="Despesas"
-              tone="expense"
-              items={expenses}
-              currency={currency}
-            />
-          ) : (
-            <p className="rounded-md border border-dashed border-rose-200 bg-rose-50/40 px-4 py-3 text-sm text-rose-700 md:col-span-2">
-              Nenhuma despesa registrada neste mês.
-            </p>
-          )}
+          <div className="grid gap-6 md:grid-cols-2">
+            {hasIncome ? (
+              <SectionList
+                title="Receitas"
+                tone="income"
+                items={incomes}
+                currency={currency}
+              />
+            ) : (
+              <p className="rounded-md border border-dashed border-emerald-200 bg-emerald-50/40 px-4 py-3 text-sm text-emerald-700 md:col-span-2">
+                Nenhuma receita registrada neste mês.
+              </p>
+            )}
+
+            {hasExpense ? (
+              <SectionList
+                title="Despesas"
+                tone="expense"
+                items={expenses}
+                currency={currency}
+              />
+            ) : (
+              <p className="rounded-md border border-dashed border-rose-200 bg-rose-50/40 px-4 py-3 text-sm text-rose-700 md:col-span-2">
+                Nenhuma despesa registrada neste mês.
+              </p>
+            )}
+          </div>
         </div>
-      </div>
+      ) : null}
     </section>
   );
 };
