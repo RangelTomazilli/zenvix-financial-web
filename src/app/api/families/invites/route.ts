@@ -8,6 +8,16 @@ import { sendInviteEmail } from "@/lib/email";
 
 const INVITE_TTL_DAYS = Number(process.env.FAMILY_INVITE_TTL_DAYS ?? 7);
 
+type InviteRecord = {
+  id: string;
+  family_id: string;
+  invitee_email: string;
+  status: "pending" | "accepted" | "expired" | "revoked";
+  expires_at: string | null;
+  created_at: string;
+  token: string;
+};
+
 export const POST = async (request: Request) => {
   try {
     const supabase = await createSupabaseServerClient();
@@ -40,8 +50,6 @@ export const POST = async (request: Request) => {
     }
 
     const lowerEmail = email.trim().toLowerCase();
-    const token = randomUUID();
-    const expiresAt = addDays(new Date(), INVITE_TTL_DAYS);
 
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
@@ -74,6 +82,109 @@ export const POST = async (request: Request) => {
         { status: 403 },
       );
     }
+
+    const now = new Date();
+    const targetFamilyName = familyName ?? "Família";
+    const inviterName =
+      profile.full_name ?? user.email ?? "Um membro da família";
+    const appUrl = currentAppUrl();
+
+    const sendEmail = async (invite: InviteRecord) => {
+      const inviteLink = `${appUrl}/invite/${invite.token}`;
+      try {
+        await sendInviteEmail({
+          to: lowerEmail,
+          inviterName,
+          familyName: targetFamilyName,
+          inviteLink,
+        });
+      } catch (emailError) {
+        logger.warn("Convite: falha ao enviar e-mail", {
+          emailError,
+          inviteId: invite.id,
+        });
+      }
+    };
+
+    const existingInviteResponse = await supabase
+      .from("family_invites")
+      .select(
+        "id, family_id, invitee_email, status, expires_at, created_at, token",
+      )
+      .eq("family_id", familyId)
+      .eq("invitee_email", lowerEmail)
+      .eq("status", "pending")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (existingInviteResponse.error) {
+      logger.error("Convite: erro ao buscar convite existente", {
+        error: existingInviteResponse.error,
+        payload: { familyId, email: lowerEmail, inviter: profile.id },
+      });
+      return NextResponse.json(
+        { error: "Erro ao verificar convites existentes" },
+        { status: 500 },
+      );
+    }
+
+    let existingInvite = existingInviteResponse.data as InviteRecord | null;
+
+    if (existingInvite) {
+      const isExpired =
+        existingInvite.expires_at !== null &&
+        new Date(existingInvite.expires_at) <= now;
+
+      if (!isExpired) {
+        let refreshedInvite = existingInvite;
+
+        if (INVITE_TTL_DAYS > 0) {
+          const refreshedExpiresAt = addDays(now, INVITE_TTL_DAYS).toISOString();
+          const refreshResponse = await supabase
+            .from("family_invites")
+            .update({ expires_at: refreshedExpiresAt })
+            .eq("id", existingInvite.id)
+            .select(
+              "id, family_id, invitee_email, status, expires_at, created_at, token",
+            )
+            .single();
+
+          if (refreshResponse.error) {
+            logger.warn("Convite: erro ao atualizar expiração", {
+              error: refreshResponse.error,
+              inviteId: existingInvite.id,
+            });
+          } else if (refreshResponse.data) {
+            refreshedInvite = refreshResponse.data as InviteRecord;
+          }
+        }
+
+        await sendEmail(refreshedInvite);
+
+        return NextResponse.json(
+          { invite: refreshedInvite, reused: true },
+          { status: 200 },
+        );
+      }
+
+      const expireResponse = await supabase
+        .from("family_invites")
+        .update({ status: "expired" })
+        .eq("id", existingInvite.id);
+
+      if (expireResponse.error) {
+        logger.warn("Convite: erro ao expirar convite antigo", {
+          error: expireResponse.error,
+          inviteId: existingInvite.id,
+        });
+      }
+
+      existingInvite = null;
+    }
+
+    const token = randomUUID();
+    const expiresAt = addDays(now, INVITE_TTL_DAYS);
 
     const inviteInsert = await supabase
       .from("family_invites")
@@ -118,22 +229,16 @@ export const POST = async (request: Request) => {
         { status: 500 },
       );
     }
-    const appUrl = currentAppUrl();
-    const inviteLink = `${appUrl}/invite/${token}`;
 
-    try {
-      await sendInviteEmail({
-        to: lowerEmail,
-        inviterName: profile.full_name ?? user.email ?? "Um membro da família",
-        familyName: familyName ?? "Família",
-        inviteLink,
-      });
-    } catch (emailError) {
-      logger.warn("Convite: falha ao enviar e-mail", {
-        emailError,
-        inviteId: inviteRecord.id,
-      });
-    }
+    await sendEmail({
+      id: inviteRecord.id,
+      family_id: inviteRecord.family_id,
+      invitee_email: inviteRecord.invitee_email,
+      status: inviteRecord.status as InviteRecord["status"],
+      expires_at: inviteRecord.expires_at,
+      created_at: inviteRecord.created_at,
+      token: inviteRecord.token,
+    });
 
     return NextResponse.json(
       { invite: inviteRecord },

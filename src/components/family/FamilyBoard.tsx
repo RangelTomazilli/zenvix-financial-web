@@ -38,6 +38,7 @@ export const FamilyBoard = ({
   const [message, setMessage] = useState<MessageState | null>(null);
   const [updatingFamily, setUpdatingFamily] = useState(false);
   const [inviting, setInviting] = useState(false);
+  const [resendingId, setResendingId] = useState<string | null>(null);
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [pendingRemoval, setPendingRemoval] = useState<{
     id: string;
@@ -49,6 +50,61 @@ export const FamilyBoard = ({
   const showMessage = (next: MessageState) => {
     setMessage(next);
     setTimeout(() => setMessage(null), 3500);
+  };
+
+  const integrateInvite = (
+    nextInvite: FamilyInvite,
+    previousInviteId?: string,
+  ) => {
+    setInvites((prev) => {
+      const withStatusUpdates = prev.map((item) => {
+        if (
+          previousInviteId &&
+          item.id === previousInviteId &&
+          previousInviteId !== nextInvite.id &&
+          item.status !== "expired"
+        ) {
+          return { ...item, status: "expired" };
+        }
+        return item;
+      });
+
+      const existingIndex = withStatusUpdates.findIndex(
+        (item) => item.id === nextInvite.id,
+      );
+      if (existingIndex >= 0) {
+        const updated = [...withStatusUpdates];
+        updated[existingIndex] = nextInvite;
+        return updated;
+      }
+
+      return [nextInvite, ...withStatusUpdates];
+    });
+  };
+
+  const submitInvite = async (targetEmail: string) => {
+    const normalizedEmail = targetEmail.trim();
+    const response = await fetch("/api/families/invites", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email: normalizedEmail,
+        familyId: family.id,
+        familyName: name,
+      }),
+    });
+
+    const payload = (await response.json()) as {
+      invite?: FamilyInvite;
+      reused?: boolean;
+      error?: string;
+    };
+
+    if (!response.ok || !payload?.invite) {
+      throw new Error(payload?.error ?? "Erro ao enviar convite");
+    }
+
+    return payload;
   };
 
   const handleSaveFamily = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -81,7 +137,8 @@ export const FamilyBoard = ({
 
   const handleInvite = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!inviteEmail.trim()) {
+    const normalizedEmail = inviteEmail.trim();
+    if (!normalizedEmail) {
       return;
     }
 
@@ -96,29 +153,17 @@ export const FamilyBoard = ({
     setInviting(true);
 
     try {
-      const response = await fetch("/api/families/invites", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: inviteEmail,
-          familyId: family.id,
-          familyName: name,
-        }),
-      });
+      const { invite: savedInvite, reused } = await submitInvite(
+        normalizedEmail,
+      );
 
-      if (!response.ok) {
-        const payload = await response.json();
-        throw new Error(payload.error ?? "Erro ao enviar convite");
-      }
-
-      const payload = await response.json();
-      const newInvite = payload.invite as FamilyInvite;
-
-      setInvites((prev) => [newInvite, ...prev]);
+      integrateInvite(savedInvite);
       setInviteEmail("");
       showMessage({
         type: "success",
-        text: "Convite enviado com sucesso.",
+        text: reused
+          ? "Convite reenviado com sucesso."
+          : "Convite enviado com sucesso.",
       });
     } catch (error) {
       console.error(error);
@@ -130,6 +175,42 @@ export const FamilyBoard = ({
       setInviting(false);
     }
   };
+
+  const handleResendInvite = async (invite: FamilyInvite) => {
+    if (!isOwner) {
+      showMessage({
+        type: "error",
+        text: "Apenas administradores podem reenviar convites.",
+      });
+      return;
+    }
+
+    setResendingId(invite.id);
+
+    try {
+      const { invite: refreshedInvite } = await submitInvite(
+        invite.invitee_email,
+      );
+
+      integrateInvite(refreshedInvite, invite.id);
+      showMessage({
+        type: "success",
+        text: "Convite reenviado com sucesso.",
+      });
+    } catch (error) {
+      console.error(error);
+      showMessage({
+        type: "error",
+        text: error instanceof Error ? error.message : "Erro inesperado.",
+      });
+    } finally {
+      setResendingId(null);
+    }
+  };
+
+  const pendingInvites = invites.filter(
+    (invite) => invite.status === "pending",
+  );
 
   const confirmRemoval = async () => {
     if (!pendingRemoval) {
@@ -332,20 +413,23 @@ export const FamilyBoard = ({
                 <th className="px-4 py-3 font-medium text-slate-600">
                   Expira em
                 </th>
+                <th className="px-4 py-3 font-medium text-slate-600 text-right">
+                  Ações
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {invites.length === 0 ? (
+              {pendingInvites.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={3}
+                    colSpan={4}
                     className="px-4 py-6 text-center text-slate-500"
                   >
                     Nenhum convite pendente.
                   </td>
                 </tr>
               ) : null}
-              {invites.map((invite) => (
+              {pendingInvites.map((invite) => (
                 <tr key={invite.id}>
                   <td className="px-4 py-3 font-medium text-slate-700">
                     {invite.invitee_email}
@@ -357,6 +441,24 @@ export const FamilyBoard = ({
                     {invite.expires_at
                       ? new Date(invite.expires_at).toLocaleDateString("pt-BR")
                       : "Sem validade"}
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    {isOwner ? (
+                      <button
+                        type="button"
+                        className="rounded-md border border-indigo-200 px-3 py-1 text-xs text-indigo-600 transition hover:bg-indigo-50 disabled:opacity-60"
+                        onClick={() => {
+                          void handleResendInvite(invite);
+                        }}
+                        disabled={resendingId === invite.id}
+                      >
+                        {resendingId === invite.id
+                          ? "Reenviando..."
+                          : "Reenviar"}
+                      </button>
+                    ) : (
+                      <span className="text-xs text-slate-400">—</span>
+                    )}
                   </td>
                 </tr>
               ))}

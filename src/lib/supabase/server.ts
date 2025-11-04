@@ -47,39 +47,35 @@ export const createSupabaseServerClient = async () => {
         }
       },
       async set(name: string, value: string, options: CookieOptions) {
-        try {
-          // cookies() in server components retorna ReadonlyRequestCookies (sem set).
-          // Evitamos tentativa de escrita fora de handlers/actions.
-          const mutableStore = cookieStore as unknown as {
-            set?: (opts: { name: string; value: string } & CookieOptions) => void;
-          };
+        const mutableStore = cookieStore as unknown as {
+          set?: (opts: { name: string; value: string } & CookieOptions) => void;
+        };
 
-          if (typeof mutableStore.set === "function") {
+        if (typeof mutableStore.set === "function") {
+          try {
             mutableStore.set({ name, value, ...options });
-          } else {
-            logger.warn("Supabase cookie not set (mutable store unavailable)", {
+          } catch (error) {
+            logger.debug?.("Supabase cookie ignored outside route handler", {
               name,
+              error,
             });
           }
-        } catch (error) {
-          logger.warn("Unable to set Supabase cookie", { name, error });
         }
       },
       async remove(name: string, options: CookieOptions) {
-        try {
-          const mutableStore = cookieStore as unknown as {
-            set?: (opts: { name: string; value: string } & CookieOptions) => void;
-          };
+        const mutableStore = cookieStore as unknown as {
+          set?: (opts: { name: string; value: string } & CookieOptions) => void;
+        };
 
-          if (typeof mutableStore.set === "function") {
+        if (typeof mutableStore.set === "function") {
+          try {
             mutableStore.set({ name, value: "", ...options, maxAge: 0 });
-          } else {
-            logger.warn("Supabase cookie not cleared (mutable store unavailable)", {
+          } catch (error) {
+            logger.debug?.("Supabase cookie removal ignored", {
               name,
+              error,
             });
           }
-        } catch (error) {
-          logger.warn("Unable to clear Supabase cookie", { name, error });
         }
       },
     },
