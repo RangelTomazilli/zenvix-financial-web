@@ -5,6 +5,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { logger } from "@/lib/logger";
 import { currentAppUrl } from "@/utils/url";
 import { sendInviteEmail } from "@/lib/email";
+import type { Database } from "@/types/database";
 
 const INVITE_TTL_DAYS = Number(process.env.FAMILY_INVITE_TTL_DAYS ?? 7);
 
@@ -116,7 +117,7 @@ export const POST = async (request: Request) => {
       .eq("status", "pending")
       .order("created_at", { ascending: false })
       .limit(1)
-      .maybeSingle();
+      .maybeSingle<InviteRecord>();
 
     if (existingInviteResponse.error) {
       logger.error("Convite: erro ao buscar convite existente", {
@@ -143,12 +144,12 @@ export const POST = async (request: Request) => {
           const refreshedExpiresAt = addDays(now, INVITE_TTL_DAYS).toISOString();
           const refreshResponse = await supabase
             .from("family_invites")
-            .update({ expires_at: refreshedExpiresAt })
+            .update({ expires_at: refreshedExpiresAt } as never)
             .eq("id", existingInvite.id)
             .select(
               "id, family_id, invitee_email, status, expires_at, created_at, token",
             )
-            .single();
+            .single<InviteRecord>();
 
           if (refreshResponse.error) {
             logger.warn("Convite: erro ao atualizar expiração", {
@@ -170,7 +171,7 @@ export const POST = async (request: Request) => {
 
       const expireResponse = await supabase
         .from("family_invites")
-        .update({ status: "expired" })
+        .update({ status: "expired" } as never)
         .eq("id", existingInvite.id);
 
       if (expireResponse.error) {
@@ -198,7 +199,7 @@ export const POST = async (request: Request) => {
       .select(
         "id, family_id, invitee_email, status, expires_at, created_at, token",
       )
-      .single();
+      .single<InviteRecord>();
 
     if (inviteInsert.error) {
       logger.error("Convite: erro ao criar", {

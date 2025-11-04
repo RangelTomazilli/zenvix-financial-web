@@ -20,7 +20,9 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   const successMessage =
     status === "registered"
       ? "Seu cadastro foi enviado com sucesso. Verifique sua caixa de entrada e confirme o e-mail antes de acessar o painel."
-      : undefined;
+      : status === "confirmed"
+        ? "E-mail confirmado com sucesso. Agora você pode entrar usando suas credenciais."
+        : undefined;
 
   const registerParams = new URLSearchParams();
   if (redirectTo) {

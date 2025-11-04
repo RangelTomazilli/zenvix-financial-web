@@ -3,9 +3,10 @@
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { registerSchema } from "@/lib/validation";
-import { logger } from "@/lib/logger";
 import { supabaseAdmin } from "@/lib/supabase/admin";
+import { logger } from "@/lib/logger";
 import type { Database } from "@/types/database";
+import { currentAppUrl } from "@/utils/url";
 
 interface RegisterState {
   error?: string;
@@ -32,11 +33,16 @@ export async function registerAction(
   }
 
   const supabase = await createSupabaseServerClient();
+  const appUrl = currentAppUrl();
+  const confirmationUrl = new URL("/login", appUrl);
+  confirmationUrl.searchParams.set("status", "confirmed");
+  confirmationUrl.searchParams.set("email", parsed.data.email);
 
   const { data, error } = await supabase.auth.signUp({
     email: parsed.data.email,
     password: parsed.data.password,
     options: {
+      emailRedirectTo: confirmationUrl.toString(),
       data: {
         full_name: parsed.data.fullName,
       },

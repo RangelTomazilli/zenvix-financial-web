@@ -57,14 +57,17 @@ export const FamilyBoard = ({
     previousInviteId?: string,
   ) => {
     setInvites((prev) => {
-      const withStatusUpdates = prev.map((item) => {
+      const withStatusUpdates: FamilyInvite[] = prev.map((item) => {
         if (
           previousInviteId &&
           item.id === previousInviteId &&
           previousInviteId !== nextInvite.id &&
           item.status !== "expired"
         ) {
-          return { ...item, status: "expired" };
+          return {
+            ...item,
+            status: "expired" as FamilyInvite["status"],
+          };
         }
         return item;
       });
@@ -100,11 +103,13 @@ export const FamilyBoard = ({
       error?: string;
     };
 
-    if (!response.ok || !payload?.invite) {
+    const invite = payload?.invite;
+
+    if (!response.ok || !invite) {
       throw new Error(payload?.error ?? "Erro ao enviar convite");
     }
 
-    return payload;
+    return { invite, reused: payload.reused };
   };
 
   const handleSaveFamily = async (event: React.FormEvent<HTMLFormElement>) => {

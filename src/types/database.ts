@@ -87,6 +87,36 @@ export interface Database {
         };
         Update: Partial<Omit<Database["public"]["Tables"]["transactions"]["Row"], "id" | "family_id">>;
       };
+      family_invites: {
+        Row: {
+          id: string;
+          family_id: string;
+          inviter_id: string;
+          invitee_email: string;
+          token: string;
+          status: "pending" | "accepted" | "expired" | "revoked";
+          expires_at: string | null;
+          accepted_at: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          family_id: string;
+          inviter_id: string;
+          invitee_email: string;
+          token: string;
+          status?: "pending" | "accepted" | "expired" | "revoked";
+          expires_at?: string | null;
+          accepted_at?: string | null;
+          created_at?: string;
+        };
+        Update: Partial<
+          Omit<
+            Database["public"]["Tables"]["family_invites"]["Row"],
+            "id" | "family_id" | "inviter_id" | "token" | "created_at"
+          >
+        >;
+      };
     };
     Views: Record<string, unknown>;
     Functions: Record<string, unknown>;
@@ -97,3 +127,4 @@ export type Family = Database["public"]["Tables"]["families"]["Row"];
 export type Profile = Database["public"]["Tables"]["profiles"]["Row"];
 export type Category = Database["public"]["Tables"]["categories"]["Row"];
 export type Transaction = Database["public"]["Tables"]["transactions"]["Row"];
+export type FamilyInvite = Database["public"]["Tables"]["family_invites"]["Row"];
