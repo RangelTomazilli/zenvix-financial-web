@@ -25,7 +25,7 @@ export const RecentTransactions = ({
 
   return (
     <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-      <header className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+      <header className="mb-4 flex items-start justify-between gap-3">
         <div className="space-y-1">
           <h2 className="text-lg font-semibold text-slate-900">
             Últimas transações
@@ -37,20 +37,23 @@ export const RecentTransactions = ({
         <button
           type="button"
           onClick={() => setIsOpen((prev) => !prev)}
-          className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 text-slate-600 transition hover:border-indigo-400 hover:text-indigo-600"
+          className="mt-1 flex items-center justify-center text-slate-600 transition hover:text-indigo-600 sm:mt-0 sm:h-9 sm:w-9 sm:rounded-full sm:border sm:border-slate-200 sm:hover:border-indigo-400"
           aria-expanded={isOpen}
         >
           <span className="sr-only">Alternar exibição</span>
           <span
             aria-hidden="true"
-            className={`text-xl transition-transform ${isOpen ? "rotate-90" : "-rotate-90"}`}
+            className={`text-lg transition-transform ${isOpen ? "rotate-90" : "-rotate-90"}`}
           >
             ›
           </span>
         </button>
       </header>
       {isOpen ? (
-        <div className="overflow-hidden rounded-lg border border-slate-100">
+        <div
+          className="overflow-x-auto rounded-lg border border-slate-100"
+          style={{ WebkitOverflowScrolling: "touch" }}
+        >
           <table className="min-w-full divide-y divide-slate-100 text-sm">
             <thead className="bg-slate-50 text-left">
               <tr>

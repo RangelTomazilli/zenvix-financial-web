@@ -1,35 +1,49 @@
+import { Suspense } from "react";
 import { redirect } from "next/navigation";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import {
+  SummaryCardsSkeleton,
+  CategoryDistributionSkeleton,
+  MemberBreakdownSkeleton,
+  RecentTransactionsSkeleton,
+} from "@/components/dashboard/Skeletons";
+import { MonthFilter } from "@/components/dashboard/MonthFilter";
 import { SummaryCards } from "@/components/dashboard/SummaryCards";
 import { CategoryDistribution } from "@/components/dashboard/CategoryDistribution";
 import { MemberBreakdown } from "@/components/dashboard/MemberBreakdown";
 import { RecentTransactions } from "@/components/dashboard/RecentTransactions";
 import type { CategoryStat } from "@/components/dashboard/CategoryDistribution";
 import type { RecentTransactionItem } from "@/components/dashboard/RecentTransactions";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 const toISODate = (date: Date) => date.toISOString().split("T")[0]!;
+const monthRegex = /^\d{4}-\d{2}$/;
 
-export default async function DashboardPage() {
+const formatMonthLabel = (value: string) => {
+  const [year, month] = value.split("-").map(Number);
+  const date = new Date(year ?? 0, (month ?? 1) - 1, 1);
+  return format(date, "LLLL yyyy", { locale: ptBR });
+};
+
+interface DashboardPageProps {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}
+
+const fetchDashboardData = async ({
+  familyId,
+  selectedMonth,
+}: {
+  familyId: string;
+  selectedMonth: string;
+}) => {
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
 
-  if (!user) {
-    redirect("/login");
-  }
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("family_id")
-    .eq("user_id", user.id)
-    .single<{ family_id: string | null }>();
-
-  if (!profile?.family_id) {
-    redirect("/family");
-  }
-
-  const familyId = profile.family_id as string;
+  const [year, month] = selectedMonth.split("-").map(Number);
+  const startDate = new Date(year ?? 0, (month ?? 1) - 1, 1);
+  const endDate = new Date(year ?? 0, (month ?? 1), 1);
+  const startISO = toISODate(startDate);
+  const endISO = toISODate(endDate);
 
   const { data: familyRow } = await supabase
     .from("families")
@@ -38,46 +52,6 @@ export default async function DashboardPage() {
     .single<{ currency_code: string }>();
 
   const currency = familyRow?.currency_code ?? "BRL";
-
-  const {
-    data: totalsData,
-    error: totalsError,
-  } = await supabase
-    .from("transactions")
-    .select("amount, type")
-    .eq("family_id", familyId);
-
-  if (totalsError) {
-    console.error("dashboard: erro ao buscar totais de transações", {
-      familyId,
-      totalsError,
-    });
-  }
-
-  const totalsRows = (totalsData ?? []) as Array<{
-    amount: number;
-    type: "income" | "expense";
-  }>;
-
-  const totals = totalsRows.reduce(
-    (acc, item) => {
-      const amount = Number(item.amount) || 0;
-      if (item.type === "income") {
-        acc.income += amount;
-      } else if (item.type === "expense") {
-        acc.expense += amount;
-      }
-      return acc;
-    },
-    { income: 0, expense: 0 },
-  );
-
-  const totalIncome = totals.income;
-  const totalExpense = totals.expense;
-
-  const startOfMonth = new Date();
-  startOfMonth.setDate(1);
-  const monthStart = toISODate(startOfMonth);
 
   const { data: monthlyData } = await supabase
     .from("transactions")
@@ -88,10 +62,12 @@ export default async function DashboardPage() {
       `,
     )
     .eq("family_id", familyId)
-    .gte("occurred_on", monthStart)
+    .gte("occurred_on", startISO)
+    .lt("occurred_on", endISO)
     .order("occurred_on", { ascending: false });
 
   const monthlyRows = (monthlyData ?? []) as Array<{
+    id: string;
     amount: number;
     type: "income" | "expense";
     occurred_on: string;
@@ -133,34 +109,7 @@ export default async function DashboardPage() {
     [],
   );
 
-  const { data: latestTransactions } = await supabase
-    .from("transactions")
-    .select(
-      `id, amount, type, occurred_on, description,
-        categories ( name ),
-        profiles ( full_name )
-      `,
-    )
-    .eq("family_id", familyId)
-    .order("occurred_on", { ascending: false })
-    .limit(8);
-
-  const { count: transactionsCount } = await supabase
-    .from("transactions")
-    .select("id", { count: "exact", head: true })
-    .eq("family_id", familyId);
-
-  const latestRows = (latestTransactions ?? []) as Array<{
-    id: string;
-    amount: number;
-    type: "income" | "expense";
-    occurred_on: string;
-    description: string | null;
-    categories: { name: string } | null;
-    profiles: { full_name: string | null } | null;
-  }>;
-
-  const recentItems: RecentTransactionItem[] = latestRows.map((item) => ({
+  const recentItems: RecentTransactionItem[] = monthlyRows.slice(0, 8).map((item) => ({
     id: item.id,
     description: item.description,
     categoryName: item.categories?.name ?? null,
@@ -229,18 +178,171 @@ export default async function DashboardPage() {
       return b.expense - a.expense;
     });
 
+  return {
+    currency,
+    monthlyIncome,
+    monthlyExpense,
+    categoryStats,
+    memberContributions,
+    recentItems,
+    totalTransactions: monthlyRows.length,
+  };
+};
+
+const fetchMonths = async (familyId: string, selectedMonth: string) => {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("transactions")
+    .select("occurred_on")
+    .eq("family_id", familyId)
+    .order("occurred_on", { ascending: false });
+
+  if (error) {
+    console.error("dashboard: erro ao buscar meses disponíveis", {
+      familyId,
+      error,
+    });
+  }
+
+  const monthSet = new Set<string>();
+  const monthRows = (data ?? []) as Array<{ occurred_on: string }>;
+  for (const row of monthRows) {
+    if (!row.occurred_on) continue;
+    monthSet.add(row.occurred_on.slice(0, 7));
+  }
+  if (!monthSet.has(selectedMonth)) {
+    monthSet.add(selectedMonth);
+  }
+
+  return Array.from(monthSet)
+    .sort((a, b) => b.localeCompare(a))
+    .map((value) => ({
+      value,
+      label: formatMonthLabel(value),
+    }));
+};
+
+export default async function DashboardPage({ searchParams }: DashboardPageProps) {
+  const params = await searchParams;
+
+  const supabase = await createSupabaseServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/login");
+  }
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("family_id")
+    .eq("user_id", user.id)
+    .single<{ family_id: string | null }>();
+
+  if (!profile?.family_id) {
+    redirect("/family");
+  }
+
+  const familyId = profile.family_id as string;
+  const currentMonth = toISODate(new Date()).slice(0, 7);
+  const monthParam = typeof params?.month === "string" ? params.month : undefined;
+  const selectedMonth = monthParam && monthRegex.test(monthParam) ? monthParam : currentMonth;
+
+  const monthOptions = await fetchMonths(familyId, selectedMonth);
+
   return (
     <div className="flex flex-col gap-6">
-      <SummaryCards
-        balance={totalIncome - totalExpense}
-        monthlyIncome={monthlyIncome}
-        monthlyExpense={monthlyExpense}
-        totalTransactions={transactionsCount ?? 0}
-        currency={currency}
-      />
-      <CategoryDistribution data={categoryStats} currency={currency} />
-      <MemberBreakdown data={memberContributions} currency={currency} />
-      <RecentTransactions data={recentItems} currency={currency} />
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-xl font-semibold text-slate-900">
+            Visão geral financeira
+          </h1>
+          <p className="text-sm text-slate-500">
+            Dados consolidados de {formatMonthLabel(selectedMonth)}.
+          </p>
+        </div>
+        <MonthFilter options={monthOptions} selectedMonth={selectedMonth} />
+      </div>
+      <Suspense
+        key={`summary-${selectedMonth}`}
+        fallback={<SummaryCardsSkeleton />}
+      >
+        <SummarySection familyId={familyId} selectedMonth={selectedMonth} />
+      </Suspense>
+      <div className="flex flex-col gap-6">
+        <Suspense
+          key={`category-${selectedMonth}`}
+          fallback={<CategoryDistributionSkeleton />}
+        >
+          <CategorySection familyId={familyId} selectedMonth={selectedMonth} />
+        </Suspense>
+        <Suspense
+          key={`members-${selectedMonth}`}
+          fallback={<MemberBreakdownSkeleton />}
+        >
+          <MembersSection familyId={familyId} selectedMonth={selectedMonth} />
+        </Suspense>
+        <Suspense
+          key={`recent-${selectedMonth}`}
+          fallback={<RecentTransactionsSkeleton />}
+        >
+          <RecentSection familyId={familyId} selectedMonth={selectedMonth} />
+        </Suspense>
+      </div>
     </div>
   );
 }
+
+const SummarySection = async ({
+  familyId,
+  selectedMonth,
+}: {
+  familyId: string;
+  selectedMonth: string;
+}) => {
+  const data = await fetchDashboardData({ familyId, selectedMonth });
+
+  return (
+    <SummaryCards
+      balance={data.monthlyIncome - data.monthlyExpense}
+      monthlyIncome={data.monthlyIncome}
+      monthlyExpense={data.monthlyExpense}
+      totalTransactions={data.totalTransactions}
+      currency={data.currency}
+    />
+  );
+};
+
+const CategorySection = async ({
+  familyId,
+  selectedMonth,
+}: {
+  familyId: string;
+  selectedMonth: string;
+}) => {
+  const data = await fetchDashboardData({ familyId, selectedMonth });
+  return <CategoryDistribution data={data.categoryStats} currency={data.currency} />;
+};
+
+const MembersSection = async ({
+  familyId,
+  selectedMonth,
+}: {
+  familyId: string;
+  selectedMonth: string;
+}) => {
+  const data = await fetchDashboardData({ familyId, selectedMonth });
+  return <MemberBreakdown data={data.memberContributions} currency={data.currency} />;
+};
+
+const RecentSection = async ({
+  familyId,
+  selectedMonth,
+}: {
+  familyId: string;
+  selectedMonth: string;
+}) => {
+  const data = await fetchDashboardData({ familyId, selectedMonth });
+  return <RecentTransactions data={data.recentItems} currency={data.currency} />;
+};

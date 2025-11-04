@@ -370,7 +370,10 @@ export const TransactionsBoard = ({
           </div>
           <span className="text-sm text-slate-400">Atualizado por {currentUser}</span>
         </header>
-        <div className="overflow-x-auto">
+        <div
+          className="overflow-x-auto"
+          style={{ WebkitOverflowScrolling: "touch" }}
+        >
           <table className="min-w-full divide-y divide-slate-100 text-sm">
             <thead className="bg-slate-50 text-left">
               <tr>
