@@ -5,7 +5,6 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { logger } from "@/lib/logger";
 import { currentAppUrl } from "@/utils/url";
 import { sendInviteEmail } from "@/lib/email";
-import type { Database } from "@/types/database";
 
 const INVITE_TTL_DAYS = Number(process.env.FAMILY_INVITE_TTL_DAYS ?? 7);
 
@@ -130,7 +129,7 @@ export const POST = async (request: Request) => {
       );
     }
 
-    let existingInvite = existingInviteResponse.data as InviteRecord | null;
+    let existingInvite = existingInviteResponse.data;
 
     if (existingInvite) {
       const isExpired =
@@ -212,17 +211,7 @@ export const POST = async (request: Request) => {
       );
     }
 
-    const inviteRecord = inviteInsert.data as
-      | {
-          id: string;
-          family_id: string;
-          invitee_email: string;
-          status: string;
-          expires_at: string | null;
-          created_at: string;
-          token: string;
-        }
-      | null;
+    const inviteRecord = inviteInsert.data;
 
     if (!inviteRecord) {
       return NextResponse.json(
@@ -235,7 +224,7 @@ export const POST = async (request: Request) => {
       id: inviteRecord.id,
       family_id: inviteRecord.family_id,
       invitee_email: inviteRecord.invitee_email,
-      status: inviteRecord.status as InviteRecord["status"],
+      status: inviteRecord.status,
       expires_at: inviteRecord.expires_at,
       created_at: inviteRecord.created_at,
       token: inviteRecord.token,

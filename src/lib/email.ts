@@ -1,20 +1,28 @@
 import { join } from "node:path";
 import { readFile } from "node:fs/promises";
-import { SESv2Client, SendEmailCommand } from "@aws-sdk/client-sesv2";
+import nodemailer from "nodemailer";
 import { logger } from "@/lib/logger";
 
-const sesAccessKeyId = process.env.SES_ACCESS_KEY_ID;
-const sesSecretAccessKey = process.env.SES_SECRET_ACCESS_KEY;
-const sesRegion = process.env.SES_REGION ?? "sa-east-1";
-const sesFrom = process.env.SES_FROM_EMAIL ?? "convites@zenvix.com.br";
+const smtpHost = process.env.SMTP_HOST ?? "smtp.gmail.com";
+const smtpPort = Number.parseInt(process.env.SMTP_PORT ?? "465", 10);
+const smtpSecure =
+  process.env.SMTP_SECURE !== undefined
+    ? process.env.SMTP_SECURE === "true"
+    : smtpPort === 465;
+const smtpUser = process.env.SMTP_USER;
+const smtpPass = process.env.SMTP_PASS;
+const smtpFrom =
+  process.env.SMTP_FROM ?? smtpUser ?? "contato@zenvix.com.br";
 
-const sesClient =
-  sesAccessKeyId && sesSecretAccessKey
-    ? new SESv2Client({
-        region: sesRegion,
-        credentials: {
-          accessKeyId: sesAccessKeyId,
-          secretAccessKey: sesSecretAccessKey,
+const mailer =
+  smtpHost && smtpUser && smtpPass
+    ? nodemailer.createTransport({
+        host: smtpHost,
+        port: smtpPort,
+        secure: smtpSecure,
+        auth: {
+          user: smtpUser,
+          pass: smtpPass,
         },
       })
     : null;
@@ -27,8 +35,9 @@ interface InviteEmailPayload {
 }
 
 export const sendInviteEmail = async (payload: InviteEmailPayload) => {
-  if (!sesClient) {
-    logger.info("E-mail de convite não enviado (credenciais SES ausentes)", {
+  if (!mailer) {
+    logger.info("E-mail de convite não enviado (SMTP inoperante)", {
+      reason: "Credenciais ausentes",
       payload,
     });
     return;
@@ -36,23 +45,15 @@ export const sendInviteEmail = async (payload: InviteEmailPayload) => {
 
   try {
     const html = await renderInviteTemplate(payload);
-    const command = new SendEmailCommand({
-      FromEmailAddress: sesFrom,
-      Destination: { ToAddresses: [payload.to] },
-      Content: {
-        Simple: {
-          Subject: { Data: `Convite para ${payload.familyName}`, Charset: "UTF-8" },
-          Body: {
-            Html: {
-              Data: html,
-              Charset: "UTF-8",
-            },
-          },
-        },
-      },
-    });
+    const text = renderInviteText(payload);
 
-    await sesClient.send(command);
+    await mailer.sendMail({
+      from: smtpFrom,
+      to: payload.to,
+      subject: `Convite para ${payload.familyName}`,
+      html,
+      text,
+    });
   } catch (error) {
     logger.error("Falha ao enviar e-mail de convite", { error, payload });
     throw error;
@@ -83,4 +84,16 @@ const renderInviteTemplate = async (payload: InviteEmailPayload) => {
     .replace(/{{\s*INVITER_NAME\s*}}/g, payload.inviterName)
     .replace(/{{\s*FAMILY_NAME\s*}}/g, payload.familyName)
     .replace(/{{\s*INVITE_LINK\s*}}/g, payload.inviteLink);
+};
+
+const renderInviteText = (payload: InviteEmailPayload) => {
+  return [
+    `Olá!`,
+    "",
+    `${payload.inviterName} convidou você para acessar a família ${payload.familyName} na Zenvix.`,
+    "Acesse o link abaixo para aceitar o convite:",
+    payload.inviteLink,
+    "",
+    "Se você não solicitou este convite, pode ignorar esta mensagem.",
+  ].join("\n");
 };
