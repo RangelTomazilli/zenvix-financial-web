@@ -60,25 +60,21 @@ export const sendInviteEmail = async (payload: InviteEmailPayload) => {
   }
 };
 
-let inviteTemplateCache: string | null = null;
+const templateCache = new Map<string, string>();
 
-const loadInviteTemplate = async () => {
-  if (inviteTemplateCache) {
-    return inviteTemplateCache;
+const loadTemplate = async (fileName: string) => {
+  const cached = templateCache.get(fileName);
+  if (cached) {
+    return cached;
   }
-  const templatePath = join(
-    process.cwd(),
-    "src",
-    "email",
-    "templates",
-    "family-invite.html",
-  );
-  inviteTemplateCache = await readFile(templatePath, "utf-8");
-  return inviteTemplateCache;
+  const templatePath = join(process.cwd(), "src", "email", "templates", fileName);
+  const content = await readFile(templatePath, "utf-8");
+  templateCache.set(fileName, content);
+  return content;
 };
 
 const renderInviteTemplate = async (payload: InviteEmailPayload) => {
-  const template = await loadInviteTemplate();
+  const template = await loadTemplate("family-invite.html");
 
   return template
     .replace(/{{\s*INVITER_NAME\s*}}/g, payload.inviterName)
@@ -95,5 +91,131 @@ const renderInviteText = (payload: InviteEmailPayload) => {
     payload.inviteLink,
     "",
     "Se você não solicitou este convite, pode ignorar esta mensagem.",
+  ].join("\n");
+};
+
+const formatCurrency = (value: number, currency = "BRL") =>
+  new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency,
+    minimumFractionDigits: 2,
+  }).format(value);
+
+const toAddress = (recipient: string | string[]) =>
+  Array.isArray(recipient) ? recipient.join(", ") : recipient;
+
+interface StatementReminderPayload {
+  to: string | string[];
+  cardName: string;
+  dueDate: string;
+  totalAmount: number;
+  statementUrl?: string;
+}
+
+export const sendStatementReminderEmail = async (
+  payload: StatementReminderPayload,
+) => {
+  if (!mailer) {
+    logger.info("Lembrete de fatura não enviado (SMTP inoperante)", {
+      payload,
+    });
+    return;
+  }
+
+  const html = await renderStatementReminderTemplate(payload);
+  const text = renderStatementReminderText(payload);
+
+  await mailer.sendMail({
+    from: smtpFrom,
+    to: toAddress(payload.to),
+    subject: `Lembrete: fatura do cartão ${payload.cardName} vence em ${payload.dueDate}`,
+    html,
+    text,
+  });
+};
+
+const renderStatementReminderTemplate = async (
+  payload: StatementReminderPayload,
+) => {
+  const template = await loadTemplate("statement-reminder.html");
+  return template
+    .replace(/{{\s*CARD_NAME\s*}}/g, payload.cardName)
+    .replace(/{{\s*DUE_DATE\s*}}/g, payload.dueDate)
+    .replace(/{{\s*TOTAL_AMOUNT\s*}}/g, formatCurrency(payload.totalAmount))
+    .replace(/{{\s*STATEMENT_LINK\s*}}/g, payload.statementUrl ?? "#");
+};
+
+const renderStatementReminderText = (payload: StatementReminderPayload) => {
+  const lines = [
+    `Olá!`,
+    "",
+    `A fatura do cartão ${payload.cardName} vence em ${payload.dueDate}.`,
+    `Valor total: ${formatCurrency(payload.totalAmount)}.`,
+  ];
+
+  if (payload.statementUrl) {
+    lines.push("Acesse sua fatura pelo link:", payload.statementUrl);
+  }
+
+  lines.push(
+    "",
+    "Recomendamos realizar o pagamento até a data de vencimento para evitar encargos.",
+  );
+
+  return lines.join("\n");
+};
+
+interface CreditLimitAlertPayload {
+  to: string | string[];
+  cardName: string;
+  limitAmount: number;
+  usedAmount: number;
+  availableAmount: number;
+}
+
+export const sendCreditLimitAlertEmail = async (
+  payload: CreditLimitAlertPayload,
+) => {
+  if (!mailer) {
+    logger.info("Alerta de limite não enviado (SMTP inoperante)", {
+      payload,
+    });
+    return;
+  }
+
+  const html = await renderCreditLimitAlertTemplate(payload);
+  const text = renderCreditLimitAlertText(payload);
+
+  await mailer.sendMail({
+    from: smtpFrom,
+    to: toAddress(payload.to),
+    subject: `Atenção: limite do cartão ${payload.cardName} quase esgotado`,
+    html,
+    text,
+  });
+};
+
+const renderCreditLimitAlertTemplate = async (
+  payload: CreditLimitAlertPayload,
+) => {
+  const template = await loadTemplate("credit-limit-alert.html");
+  return template
+    .replace(/{{\s*CARD_NAME\s*}}/g, payload.cardName)
+    .replace(/{{\s*LIMIT_AMOUNT\s*}}/g, formatCurrency(payload.limitAmount))
+    .replace(/{{\s*USED_AMOUNT\s*}}/g, formatCurrency(payload.usedAmount))
+    .replace(
+      /{{\s*AVAILABLE_AMOUNT\s*}}/g,
+      formatCurrency(payload.availableAmount),
+    );
+};
+
+const renderCreditLimitAlertText = (payload: CreditLimitAlertPayload) => {
+  return [
+    `Olá!`,
+    "",
+    `O cartão ${payload.cardName} atingiu ${formatCurrency(payload.usedAmount)} de ${formatCurrency(payload.limitAmount)} do limite disponível.`,
+    `Saldo restante: ${formatCurrency(payload.availableAmount)}.`,
+    "",
+    "Considere planejar novas compras ou ajustar seu orçamento para evitar estourar o limite.",
   ].join("\n");
 };

@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Alerta de limite • Zenvix</title>
+    <style>
+      body {
+        margin: 0;
+        font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI",
+          sans-serif;
+        background-color: #f8fafc;
+        color: #1f2937;
+      }
+      .wrapper {
+        width: 100%;
+        padding: 32px 16px;
+        background: linear-gradient(135deg, #fee2e2 0%, #fef2f2 100%);
+      }
+      .card {
+        max-width: 560px;
+        margin: 0 auto;
+        background-color: #ffffff;
+        border-radius: 24px;
+        border: 1px solid rgba(248, 113, 113, 0.2);
+        box-shadow: 0 30px 80px -50px rgba(185, 28, 28, 0.25);
+        overflow: hidden;
+      }
+      .header {
+        padding: 32px;
+        background: linear-gradient(135deg, #ef4444 0%, #f97316 100%);
+        color: #ffffff;
+      }
+      .header h1 {
+        margin: 0;
+        font-size: 24px;
+        font-weight: 600;
+      }
+      .body {
+        padding: 32px;
+      }
+      .body p {
+        margin: 12px 0;
+        line-height: 1.6;
+        font-size: 15px;
+      }
+      .summary {
+        margin-top: 24px;
+        padding: 16px 20px;
+        border-radius: 18px;
+        background-color: #fef2f2;
+        border: 1px solid rgba(248, 113, 113, 0.4);
+        display: grid;
+        gap: 8px;
+        font-size: 14px;
+      }
+      .summary strong {
+        color: #b91c1c;
+      }
+      .footer {
+        padding: 24px 32px 36px;
+        border-top: 1px solid rgba(254, 215, 170, 0.8);
+        background-color: #fff7ed;
+        font-size: 12px;
+        color: #9a3412;
+        text-align: center;
+      }
+      .footer a {
+        color: #ea580c;
+        text-decoration: none;
+      }
+      @media (max-width: 520px) {
+        .header,
+        .body,
+        .footer {
+          padding: 24px;
+        }
+        .header h1 {
+          font-size: 20px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrapper">
+      <div class="card">
+        <div class="header">
+          <h1>Limite quase esgotado</h1>
+        </div>
+        <div class="body">
+          <p>Olá! ⚠️</p>
+          <p>
+            O cartão <strong>{{ CARD_NAME }}</strong> está com o limite próximo
+            do total disponível.
+          </p>
+          <div class="summary">
+            <div><strong>Limite total:</strong> {{ LIMIT_AMOUNT }}</div>
+            <div><strong>Utilizado:</strong> {{ USED_AMOUNT }}</div>
+            <div><strong>Disponível:</strong> {{ AVAILABLE_AMOUNT }}</div>
+          </div>
+          <p>
+            Ajuste seu planejamento para evitar que as próximas compras sejam
+            recusadas. Se precisar aumentar o limite ou reorganizar os gastos,
+            você pode revisar as compras do cartão diretamente no painel da
+            Zenvix.
+          </p>
+        </div>
+        <div class="footer">
+          Zenvix Finanças Familiares •
+          <a href="https://financas.zenvix.com.br" target="_blank"
+            >Acessar painel</a
+          ><br />
+          Enviado automaticamente pelo módulo de cartões da Zenvix.
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

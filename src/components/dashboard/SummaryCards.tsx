@@ -1,64 +1,99 @@
+import { clsx } from "clsx";
 import { formatCurrency } from "@/utils/format";
 
 interface SummaryCardsProps {
   balance: number;
   monthlyIncome: number;
-  monthlyExpense: number;
+  monthlyExpenseTotal: number;
+  installmentTotal: number;
   totalTransactions: number;
   currency: string;
 }
 
-const Card = ({
-  label,
-  value,
-  highlight,
+const CardShell = ({
+  children,
+  className,
 }: {
-  label: string;
-  value: string;
-  highlight?: "positive" | "negative";
+  children: React.ReactNode;
+  className?: string;
 }) => (
-  <div className="flex flex-col gap-2 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-    <span className="text-sm font-medium text-slate-500">{label}</span>
-    <span
-      className={
-        highlight === "positive"
-          ? "text-2xl font-semibold text-emerald-600"
-          : highlight === "negative"
-            ? "text-2xl font-semibold text-rose-600"
-            : "text-2xl font-semibold text-slate-900"
-      }
-    >
-      {value}
-    </span>
+  <div
+    className={clsx(
+      "flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5",
+      className,
+    )}
+  >
+    {children}
   </div>
 );
 
 export const SummaryCards = ({
   balance,
   monthlyIncome,
-  monthlyExpense,
+  monthlyExpenseTotal,
+  installmentTotal,
   totalTransactions,
   currency,
 }: SummaryCardsProps) => (
-  <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-    <Card
-      label="Saldo atual"
-      value={formatCurrency(balance, currency)}
-      highlight={balance >= 0 ? "positive" : "negative"}
-    />
-    <Card
-      label="Entradas do mês"
-      value={formatCurrency(monthlyIncome, currency)}
-      highlight="positive"
-    />
-    <Card
-      label="Saídas do mês"
-      value={formatCurrency(monthlyExpense, currency)}
-      highlight="negative"
-    />
-    <Card
-      label="Transações registradas"
-      value={`${totalTransactions}`}
-    />
+  <section className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
+    <CardShell>
+      <div>
+        <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+          Saldo atual
+        </span>
+        <p
+          className={
+            balance >= 0
+              ? "mt-1 text-xl md:text-3xl font-semibold text-emerald-600"
+              : "mt-1 text-xl md:text-3xl font-semibold text-rose-600"
+          }
+        >
+          {formatCurrency(balance, currency)}
+        </p>
+      </div>
+      <div
+        className={
+          balance >= 0
+            ? "rounded-lg border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm text-emerald-600/90"
+            : "rounded-lg border border-rose-100 bg-rose-50 px-4 py-3 text-sm text-rose-600/90"
+        }
+      >
+        <span className="font-medium">
+          Entradas do mês:{" "}
+        </span>
+        <span className="font-semibold">
+          {formatCurrency(monthlyIncome, currency)}
+        </span>
+      </div>
+    </CardShell>
+
+    <CardShell>
+      <div>
+        <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+          Saídas totais
+        </span>
+        <p className="mt-1 text-xl md:text-3xl font-semibold text-rose-600">
+          {formatCurrency(monthlyExpenseTotal, currency)}
+        </p>
+      </div>
+      <div className="rounded-lg border border-rose-100 bg-rose-50 px-4 py-3 text-sm text-rose-600/90">
+        <span className="font-medium">Parcelas do mês: </span>
+        <span className="font-semibold">
+          {formatCurrency(installmentTotal, currency)}
+        </span>
+      </div>
+    </CardShell>
+
+    <CardShell className="hidden lg:flex">
+      <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+        Transações registradas
+      </span>
+      <p className="mt-1 text-xl md:text-3xl font-semibold text-indigo-600">
+        {totalTransactions}
+      </p>
+      <p className="text-sm text-slate-500">
+        Quantidade total de lançamentos no período filtrado.
+      </p>
+    </CardShell>
   </section>
 );

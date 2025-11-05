@@ -8,6 +8,7 @@ import { clsx } from "clsx";
 const links = [
   { href: "/dashboard", label: "Dashboard" },
   { href: "/transactions", label: "Transações" },
+  { href: "/credit-cards", label: "Cartões" },
   { href: "/categories", label: "Categorias" },
   { href: "/family", label: "Família" },
   { href: "/profile", label: "Perfil" },

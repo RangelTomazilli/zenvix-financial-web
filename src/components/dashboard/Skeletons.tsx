@@ -54,3 +54,7 @@ export const MemberBreakdownSkeleton = () => (
 export const RecentTransactionsSkeleton = () => (
   <CardSkeleton lines={8} />
 );
+
+export const CreditCardInstallmentsSkeleton = () => (
+  <CardSkeleton lines={6} />
+);
