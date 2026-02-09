@@ -102,17 +102,3 @@ src/
 supabase/
   schema.sql       # Script SQL para provisionar o banco
 ```
-
-## Deploy
-A combinação Next.js + Supabase funciona muito bem no [Vercel](https://vercel.com/). Para o deploy:
-1. Crie um projeto no Vercel apontando para este repositório.
-2. Defina as variáveis de ambiente no painel do Vercel (mesmos nomes do `.env.local`).
-3. Configure o domínio desejado (opcional) e finalize o deploy.
-
-> Em produção, nunca exponha a `SUPABASE_KEY`. Ela deve ficar apenas nos ambientes server-side (Vercel, por exemplo). O navegador usa exclusivamente `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
-
-## Próximos passos sugeridos
-- Habilitar provedores OAuth no Supabase (Google, Apple, etc.).
-- Criar alertas/notificações (por e-mail ou webhook) para transações acima de determinado valor.
-- Adicionar filtros e exportação (CSV/Excel) na listagem de transações.
-- Integrar testes automatizados (React Testing Library / Playwright) para fluxos críticos.
